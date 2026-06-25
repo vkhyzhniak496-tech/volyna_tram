@@ -14,7 +14,7 @@
         fun Application.module() {
             routing {
                 get("/") {
-                    call.respondText(sayHello("Ktor"))
+                    call.respondText(sayHello("Ctor"))
                 }
             }
         }
