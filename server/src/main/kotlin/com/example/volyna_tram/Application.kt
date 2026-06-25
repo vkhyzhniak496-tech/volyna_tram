@@ -98,18 +98,48 @@ fun Application.module() {
 
                 // 4. PATCH - Aktualizacja statusu/pozycji istniejącego tramwaju
                 // Wywołanie: /api/trams/26?status=Zatrzymanie ruchu na Nowowiejskiej
+// 4. PATCH - Elastyczna modyfikacja statusu i/lub trasy istniejącego tramwaju
+// Wywołanie: /api/trams/26?status=Korek&trasa=Metro Młociny - Rondo Żaba
                 patch {
                     val numer = call.parameters["linia"]
-                    println("\n[REST - PATCH] 🛠️ Modyfikacja statusu linii: $numer")
-                    val nowyStatus = call.request.queryParameters["status"]
+                    println("\n[REST - PATCH] 🛠️ Modyfikacja danych linii: $numer")
+
+                    val params = call.request.queryParameters
+                    val nowyStatus = params["status"]
+                    val nowaTrasa = params["trasa"]
+
                     val tramwaj = tramwajeBaza.find { it.linia == numer }
 
-                    if (tramwaj != null && nowyStatus != null) {
-                        tramwaj.status = nowyStatus
-                        println("[REST - PATCH] SUCCESS: Linia $numer zmieniła status na: $nowyStatus")
-                        call.respondText("{\"message\": \"Zaktualizowano status linii $numer\"}", ContentType.Application.Json)
+                    if (tramwaj != null) {
+                        var cosZmieniono = false
+
+                        // Jeśli podano nowy status, to go aktualizujemy
+                        if (nowyStatus != null) {
+                            tramwaj.status = nowyStatus
+                            println("[REST - PATCH] -> Zmieniono status na: $nowyStatus")
+                            cosZmieniono = true
+                        }
+
+                        // Jeśli podano nową trasę, to ją aktualizujemy
+                        if (nowaTrasa != null) {
+                            tramwaj.trasa = nowaTrasa
+                            println("[REST - PATCH] -> Zmieniono trasę na: $nowaTrasa")
+                            cosZmieniono = true
+                        }
+
+                        if (cosZmieniono) {
+                            println("[REST - PATCH] SUCCESS: Dane linii $numer zaktualizowane w pamięci RAM.")
+                            call.respondText(
+                                "{\"message\": \"Zaktualizowano linię $numer\", \"trasa\": \"${tramwaj.trasa}\", \"status\": \"${tramwaj.status}\"}",
+                                ContentType.Application.Json
+                            )
+                        } else {
+                            println("[REST - PATCH] FAILED: Nie podano żadnych parametrów do zmiany (ani status, ani trasa).")
+                            call.respondText("{\"error\": \"Brak parametrów 'status' lub 'trasa'\"}", ContentType.Application.Json, HttpStatusCode.BadRequest)
+                        }
                     } else {
-                        call.respondText("{\"error\": \"Nie znaleziono linii lub brak nowego statusu\"}", ContentType.Application.Json, HttpStatusCode.BadRequest)
+                        println("[REST - PATCH] FAILED: Nie znaleziono linii $numer")
+                        call.respondText("{\"error\": \"Nie znaleziono linii $numer\"}", ContentType.Application.Json, HttpStatusCode.NotFound)
                     }
                 }
 
