@@ -14,7 +14,7 @@ fun main() {
 }
 
 // Prosta klasa reprezentująca nasz model danych tramwaju
-data class Tramwaj(val linia: String, var trasa: String, var status: String)
+data class Tramwaj(var linia: String, var trasa: String, var status: String)
 
 fun Application.module() {
 
@@ -107,38 +107,42 @@ fun Application.module() {
                     val params = call.request.queryParameters
                     val nowyStatus = params["status"]
                     val nowaTrasa = params["trasa"]
+                    val nowyNumer = params["nowyNumer"] // NOWOŚĆ - łapiemy nowy numer linii
 
                     val tramwaj = tramwajeBaza.find { it.linia == numer }
 
                     if (tramwaj != null) {
                         var cosZmieniono = false
 
-                        // Jeśli podano nowy status, to go aktualizujemy
                         if (nowyStatus != null) {
                             tramwaj.status = nowyStatus
                             println("[REST - PATCH] -> Zmieniono status na: $nowyStatus")
                             cosZmieniono = true
                         }
 
-                        // Jeśli podano nową trasę, to ją aktualizujemy
                         if (nowaTrasa != null) {
                             tramwaj.trasa = nowaTrasa
                             println("[REST - PATCH] -> Zmieniono trasę na: $nowaTrasa")
                             cosZmieniono = true
                         }
 
+                        // NOWOŚĆ - Aktualizacja samego identyfikatora (numeru linii)
+                        if (nowyNumer != null) {
+                            tramwaj.linia = nowyNumer
+                            println("[REST - PATCH] -> ZMIANA NUMERU LINII z $numer na: $nowyNumer")
+                            cosZmieniono = true
+                        }
+
                         if (cosZmieniono) {
-                            println("[REST - PATCH] SUCCESS: Dane linii $numer zaktualizowane w pamięci RAM.")
+                            val aktualnyNumer = nowyNumer ?: numer
                             call.respondText(
-                                "{\"message\": \"Zaktualizowano linię $numer\", \"trasa\": \"${tramwaj.trasa}\", \"status\": \"${tramwaj.status}\"}",
+                                "{\"message\": \"Zaktualizowano dane\", \"linia\": \"$aktualnyNumer\", \"trasa\": \"${tramwaj.trasa}\", \"status\": \"${tramwaj.status}\"}",
                                 ContentType.Application.Json
                             )
                         } else {
-                            println("[REST - PATCH] FAILED: Nie podano żadnych parametrów do zmiany (ani status, ani trasa).")
-                            call.respondText("{\"error\": \"Brak parametrów 'status' lub 'trasa'\"}", ContentType.Application.Json, HttpStatusCode.BadRequest)
+                            call.respondText("{\"error\": \"Brak parametrów do zmiany\"}", ContentType.Application.Json, HttpStatusCode.BadRequest)
                         }
                     } else {
-                        println("[REST - PATCH] FAILED: Nie znaleziono linii $numer")
                         call.respondText("{\"error\": \"Nie znaleziono linii $numer\"}", ContentType.Application.Json, HttpStatusCode.NotFound)
                     }
                 }
