@@ -1,15 +1,23 @@
 package com.example.volyna_tram
 
 import io.ktor.server.application.*
+import io.ktor.server.engine.*
+import io.ktor.server.netty.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.http.*
 
+// 1. TEGO BRAKOWAŁO - silnik Netty musi wiedzieć, co ma odpalić!
+fun main() {
+    embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
+        .start(wait = true)
+}
+
+// 2. Tutaj konfigurujesz całą resztę i logi
 fun Application.module() {
     routing {
-        // 1. Główna strona - teraz z ładnym stylem dla użytkownika
+        // Główna strona
         get("/") {
-            // Własny komunikat w konsoli serwera:
             println("\n[PRAGA-LOG] 🚋 Ktoś właśnie wszedł na stację główną Ctora!")
 
             val htmlContent = """
@@ -38,11 +46,10 @@ fun Application.module() {
             call.respondText(htmlContent, ContentType.Text.Html)
         }
 
-        // 2. Nowy punkt końcowy (Endpoint) z danymi tramwajów
+        // Endpoint z danymi tramwajów
         get("/api/trams") {
             println("\n[PRAGA-LOG] 📊 Żądanie danych o liniach tramwajowych!")
 
-            // Prosta symulacja danych w formacie JSON wpisanym z palca (na razie bez bibliotek)
             val jsonResponse = """
                 [
                     {"linia": "13", "trasa": "Cmentarz Wolski - Kawęczyńska-Bazylika", "status": "W trasie"},
