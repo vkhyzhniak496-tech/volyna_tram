@@ -27,20 +27,23 @@ fun Application.module() {
     )
 
     routing {
-        // 🌐 RĘCZNY, GOŁY MOSTK CORS (Dostosowany pod Ktor 3.5.0)
+        // 🌐 ABSOLUTNIE ODPORNY NA WERSJE MOSTEK CORS (Dla Ktor 3.5.0 + Netty)
         intercept(ApplicationCallPipeline.Plugins) {
-            val call = this.call // Jawne wyciągnięcie kontekstu dla bezpieczeństwa typów
+            val call = this.call
 
-            call.response.headers.append(HttpHeaders.AccessControlAllowOrigin, "*")
-            call.response.headers.append(HttpHeaders.AccessControlAllowMethods, "GET, POST, PATCH, PUT, DELETE, OPTIONS")
-            call.response.headers.append(HttpHeaders.AccessControlAllowHeaders, "*")
+            // Czyścimy nagłówki bezpośrednio przez jawne ustawienie tekstu bez zbędnych separatorów
+            call.response.headers.append(HttpHeaders.AccessControlAllowOrigin, "*", safeOnly = false)
+            call.response.headers.append(HttpHeaders.AccessControlAllowMethods, "GET, POST, PATCH, PUT, DELETE, OPTIONS", safeOnly = false)
+            call.response.headers.append(HttpHeaders.AccessControlAllowHeaders, "*", safeOnly = false)
 
-            // W Ktor 3.x sprawdzamy metodę przez httpMethod zamiast local.method
             if (call.request.httpMethod == HttpMethod.Options) {
                 call.respond(HttpStatusCode.OK)
                 return@intercept
             }
         }
+
+        // ... Reszta Twoich getów i route
+    
 
 
         get("/trams") {

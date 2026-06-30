@@ -20,7 +20,7 @@ external fun sendPatchFromJs(url: String)
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
     // 🚀 Podpinamy pod makiety nasze javascriptowe akcje
-    setupWebNetwork()
+  //  setupWebNetwork()
 
     // Pobieramy body dokumentu HTML jako kontener dla nasmJs/Wasm
     val body = document.body ?: return
