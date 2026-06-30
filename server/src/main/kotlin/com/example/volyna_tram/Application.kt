@@ -43,6 +43,17 @@ fun Application.module() {
             call.respondText(htmlContent, ContentType.Text.Html)
         }
 
+
+        get("/trams") {
+            // Serwer wypluwa oficjalny, praski tabor w formacie zgodnym z Twoim anglojęzycznym modelem
+            call.respond(
+                listOf(
+                    mapOf("id" to "1", "number" to "26", "start" to "Metro Młociny", "terminus" to "Wiatraczna", "state" to "Early"),
+                    mapOf("id" to "2", "number" to "19", "start" to "Nowe Bemowo", "terminus" to "Mogiła-Grób", "state" to "On Time"),
+                    mapOf("id" to "3", "number" to "13", "start" to "Cmentarz Wolski", "terminus" to "Kawęczyńska-Bazylika", "state" to "Delayed")
+                )
+            )
+        }
         // ==========================================
         // CZĘŚĆ REST - OPERACJE NA ZASOBIE /api/trams
         // ==========================================

@@ -1,47 +1,54 @@
 package com.example.volyna_tram
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import org.jetbrains.compose.resources.painterResource
-
-import volyna_tram.app.shared.generated.resources.Res
-import volyna_tram.app.shared.generated.resources.compose_multiplatform
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.volyna_tram.presentation.TramStore
+import com.example.volyna_tram.presentation.TramWidget
+import androidx.compose.runtime.LaunchedEffect
+@Preview
 
 @Composable
-@Preview
 fun App() {
+    TramScreen()
+}
+@Composable
+
+fun TramScreen() {
     MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
+        // 🌊 Podłączamy się pod jednokierunkowy strumień danych z RAM-u
+        val taborList by TramStore.tabor.collectAsState()
+
+        // ⚡LaunchedEffect odpali się RAZ na starcie aplikacji i asynchronicznie pobierze tabor z sieci
+        LaunchedEffect(Unit) {
+            TramStore.networkFetchAction?.invoke()
+        }
         Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
-            }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
+            Text(
+                text = "Praska Centrala Ruchu - Tabor",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Renderujemy prostokąciki na ekranie obok siebie
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                taborList.forEach { wagon ->
+                    TramWidget(tram = wagon)
                 }
             }
         }
