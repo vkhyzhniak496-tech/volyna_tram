@@ -5,6 +5,7 @@ import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+
 import io.ktor.server.request.*
 import io.ktor.http.*
 
@@ -26,21 +27,19 @@ fun Application.module() {
     )
 
     routing {
+        // 🌐 RĘCZNY, GOŁY MOSTK CORS (Dostosowany pod Ktor 3.5.0)
+        intercept(ApplicationCallPipeline.Plugins) {
+            val call = this.call // Jawne wyciągnięcie kontekstu dla bezpieczeństwa typów
 
-        // Strona główna z ładnym panelem
-        get("/") {
-            println("\n[PRAGA-LOG] 🚋 Ktoś wszedł na panel główny")
-            val htmlContent = """
-                <html>
-                    <head><title>Ctor REST Panel</title></head>
-                    <body style="background: #121212; color: #fff; font-family: sans-serif; padding: 30px;">
-                        <h1>Ctor REST API v2.0 🚋</h1>
-                        <p>Symulator bezpiecznie odpalony w pamięci podręcznej.</p>
-                        <p>Zasób bazy dostępny pod: <a href="/api/trams" style="color: #00ff66;">/api/trams</a></p>
-                    </body>
-                </html>
-            """.trimIndent()
-            call.respondText(htmlContent, ContentType.Text.Html)
+            call.response.headers.append(HttpHeaders.AccessControlAllowOrigin, "*")
+            call.response.headers.append(HttpHeaders.AccessControlAllowMethods, "GET, POST, PATCH, PUT, DELETE, OPTIONS")
+            call.response.headers.append(HttpHeaders.AccessControlAllowHeaders, "*")
+
+            // W Ktor 3.x sprawdzamy metodę przez httpMethod zamiast local.method
+            if (call.request.httpMethod == HttpMethod.Options) {
+                call.respond(HttpStatusCode.OK)
+                return@intercept
+            }
         }
 
 
