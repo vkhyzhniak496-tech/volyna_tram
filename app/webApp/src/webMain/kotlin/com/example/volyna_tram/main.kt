@@ -6,57 +6,59 @@ import androidx.compose.ui.window.ComposeViewport
 import com.example.volyna_tram.presentation.TramStore
 import com.example.volyna_tram.domain.model.Tram
 import kotlinx.browser.document
-import org.w3c.dom.HTMLElement
-// 🌐 1. Natywny, bezbłędny strzał JS po dane (WasmJs łyka to bez rzutowania typów)
-@JsFun("(url, callback) => { fetch(url).then(r => r.json()).then(data => callback(JSON.stringify(data))) }")
+
+// 🌐 Pobieramy czysty JSON i bezpiecznie wyciągamy z niego tablicę płaskich tekstów przez natywny JS
+@JsFun("(url, callback) => { " +
+        "  fetch(url)" +
+        "    .then(r => r.json())" +
+        "    .then(data => {" +
+        "      let arr = data.map(t => t.linia + '|' + t.trasa + '|' + t.status);" +
+        "      callback(arr.join(';'));" +
+        "    }).catch(e => console.error(e));" +
+        "}")
 external fun fetchTaborFromJs(url: String, callback: (String) -> Unit)
 
-// 🛠️ 2. Natywny strzał PATCH bezpośrednio przez przeglądarkę
-@JsFun("(url) => { fetch(url, { method: 'PATCH' }) }")
+@JsFun("(url) => { fetch(url, { method: 'PATCH' }).catch(e => console.error(e)); }")
 external fun sendPatchFromJs(url: String)
-
-
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
-    // 🚀 Podpinamy pod makiety nasze javascriptowe akcje
-  //  setupWebNetwork()
-
-    // Pobieramy body dokumentu HTML jako kontener dla nasmJs/Wasm
+    setupWebNetwork()
     val body = document.body ?: return
-
-    // Podajemy oczekiwany parametr viewportContainer
-    ComposeViewport(viewportContainer = body) {
-        App()
-    }
+    ComposeViewport(viewportContainer = body) { App() }
 }
+
 fun setupWebNetwork() {
-    // ⚠️ ZAMIEŃ 192.168.1.15 na rzeczywiste IP Twojego Acera w sieci domowej!
+    // ⚠️ Twoje tajne IP Acera (już wiemy, że serwer je widzi i odbiera ruch!)
     val acerIp = "192.168.0.132:8080"
 
     TramStore.networkFetchAction = {
-        fetchTaborFromJs("http://$acerIp/api/trams") { jsonString ->
-            // JSON string mapujemy na obiekty w czystym Kotlinie – bez asDynamic i bez zgrzytów!
-            // Tymczasowo parsujemy stringa ręcznie na sztywno pod Twoje 3 linie, żeby ominąć błędy bibliotek
-            val nowaLista = mutableListOf<Tram>()
+        fetchTaborFromJs("http://$acerIp/api/trams") { rawData ->
+            if (rawData.isEmpty()) return@fetchTaborFromJs
 
-            if (jsonString.contains("\"linia\":\"13\"") || jsonString.contains("\"linia\": \"13\"")) {
-                nowaLista.add(Tram("13", "13", "Cmentarz Wolski", "Kawęczyńska-Bazylika", "Delayed"))
-            }
-            if (jsonString.contains("\"linia\":\"26\"") || jsonString.contains("\"linia\": \"26\"")) {
-                nowaLista.add(Tram("26", "26", "Metro Młociny", "Wiatraczna", "Early"))
-            }
-            if (jsonString.contains("\"linia\":\"4\"") || jsonString.contains("\"linia\": \"4\"")) {
-                nowaLista.add(Tram("4", "4", "Żerań Wschodni", "Wyścigi", "On Time"))
+            val nowaLista = mutableListOf<Tram>()
+            val tramwajeStringi = rawData.split(";")
+
+            for (tramString in tramwajeStringi) {
+                // Rozdzielamy unikalnym separatorem, żeby nie gryzło się z przecinkami w nazwach tras!
+                val pola = tramString.split("|")
+                if (pola.size >= 3) {
+                    val linia = pola[0].trim()
+                    val trasa = pola[1].trim()
+                    val statusPolski = pola[2].trim()
+
+                    val stateConverted = if (statusPolski.contains("Opóźnienie")) "Delayed" else "On Time"
+                    val przystanki = trasa.split("-")
+                    val start = przystanki.firstOrNull()?.trim() ?: "Zajezdnia"
+                    val terminus = przystanki.lastOrNull()?.trim() ?: "Praga"
+
+                    nowaLista.add(Tram(linia, linia, start, terminus, stateConverted))
+                }
             }
 
             if (nowaLista.isNotEmpty()) {
                 TramStore.updateTaborList(nowaLista)
             }
         }
-    }
-
-    TramStore.networkPatchAction = { linia, statusNaSerwer ->
-        sendPatchFromJs("http://$acerIp/api/trams/$linia?status=$statusNaSerwer")
     }
 }

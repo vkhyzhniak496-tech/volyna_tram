@@ -43,7 +43,21 @@ fun Application.module() {
         }
 
         // ... Reszta Twoich getów i route
-    
+        get("/api/network/map") {
+            // 1. Ładujemy plik z resources jako strumień bajtów
+            val inputStream = this::class.java.classLoader.getResourceAsStream("export.geojson")
+
+            if (inputStream != null) {
+                // 2. Czytamy cały tekst z pliku
+                val geoJsonText = inputStream.bufferedReader().use { it.readText() }
+
+                // 3. Odpowiadamy czystym JSON-em z odpowiednim nagłówkiem Content-Type
+                call.respondText(geoJsonText, ContentType.Application.Json)
+            } else {
+                // Zabezpieczenie na wypadek, gdyby plik zniknął lub zmienił nazwę
+                call.respondText("{\"error\": \"Plik grafu nie znaleziony\"}", ContentType.Application.Json)
+            }
+        }
 
 
         get("/trams") {
