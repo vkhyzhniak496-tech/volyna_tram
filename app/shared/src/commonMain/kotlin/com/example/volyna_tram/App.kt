@@ -1,56 +1,51 @@
 package com.example.volyna_tram
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.volyna_tram.presentation.TramStore
-import com.example.volyna_tram.presentation.TramWidget
 import androidx.compose.runtime.LaunchedEffect
-@Preview
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.tooling.preview.Preview
+import com.example.volyna_tram.domain.model.TramElement
+import com.example.volyna_tram.domain.model.parseNetworkGeoJson
+import com.example.volyna_tram.presentation.TramMap
+import io.ktor.client.HttpClient
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
 
+@Preview
 @Composable
 fun App() {
     TramScreen()
 }
-@Composable
 
+@Composable
 fun TramScreen() {
     MaterialTheme {
-        // 🌊 Podłączamy się pod jednokierunkowy strumień danych z RAM-u
-        val taborList by TramStore.tabor.collectAsState()
+        // 1. Definiujemy stan dla naszych wektorów
+        var tramElements by remember { mutableStateOf<List<TramElement>>(emptyList()) }
 
-        // ⚡LaunchedEffect odpali się RAZ na starcie aplikacji i asynchronicznie pobierze tabor z sieci
+        // 2. Multiplatformowy klient sieciowy Ktor
+        val client = remember { HttpClient() }
+
+        // 3. Asynchroniczny strzał do wozowni na Acerze
         LaunchedEffect(Unit) {
-            TramStore.networkFetchAction?.invoke()
-        }
-        Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = "Praska Centrala Ruchu - Tabor",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            // Renderujemy prostokąciki na ekranie obok siebie
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                taborList.forEach { wagon ->
-                    TramWidget(tram = wagon)
-                }
+            try {
+                val response = client.get("http://192.168.0.132:8080/api/network/map").bodyAsText()
+                tramElements = parseNetworkGeoJson(response)
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
+        }
+
+        // 4. Sterowanie widokiem w zależności od stanu ładowania danych
+        if (tramElements.isNotEmpty()) {
+            TramMap(elements = tramElements)
+        } else {
+            Text("Ładowanie krwiobiegu stolicy z wozowni...")
         }
     }
 }
