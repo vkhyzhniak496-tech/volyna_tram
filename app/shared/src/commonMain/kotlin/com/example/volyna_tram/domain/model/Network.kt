@@ -1,5 +1,4 @@
 package com.example.volyna_tram.domain.model
-
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 
@@ -18,9 +17,15 @@ data class GeoJsonGeometry(
     val coordinates: JsonElement
 )
 
-sealed class TramElement {
-    data class Track(val points: List<Pair<Double, Double>>) : TramElement()
-    data class Stop(val name: String?, val lat: Double, val lon: Double) : TramElement()
+sealed interface TramElement {
+    data class Track(val points: List<Pair<Double, Double>>) : TramElement
+    data class Stop(val lat: Double, val lon: Double, val name: String) : TramElement
+
+    // Nowy interfejs dla peronu wektorowego
+    data class Platform(
+        val polygonPoints: List<Pair<Double, Double>>,
+        val name: String
+    ) : TramElement
 }
 
 fun parseNetworkGeoJson(jsonString: String): List<TramElement> {
@@ -35,7 +40,10 @@ fun parseNetworkGeoJson(jsonString: String): List<TramElement> {
         val collection = json.decodeFromString<GeoJsonCollection>(jsonString)
 
         for (feature in collection.features) {
-            val geom = feature.geometry ?: continue // jeśli brak geometrii, leć dalej
+            val geom = feature.geometry ?: continue
+
+            // Wyciągamy wspólną nazwę (przyda się i dla Stop, i dla Platform)
+            val name = feature.properties?.get("name")?.jsonPrimitive?.contentOrNull ?: "Nieznany"
 
             when (geom.type) {
                 "LineString" -> {
@@ -55,15 +63,25 @@ fun parseNetworkGeoJson(jsonString: String): List<TramElement> {
                     val lon = pointArray[0].jsonPrimitive.double
                     val lat = pointArray[1].jsonPrimitive.double
 
-                    // Bezpieczne wyciąganie nazwy przystanku z JsonObject
-                    val name = feature.properties?.get("name")?.jsonPrimitive?.contentOrNull
-
-                    elements.add(TramElement.Stop(name, lat, lon))
+                    // POPRAWKA: Prawidłowa kolejność argumentów (lat, lon, name) zgodnie z data class
+                    elements.add(TramElement.Stop(lat, lon, name))
+                }
+                "Polygon" -> {
+                    // W GeoJSON Polygon to tablica tablic punktów (pierwsza tablica to zewnętrzny obrys)
+                    val outerRing = geom.coordinates.jsonArray[0].jsonArray
+                    val points = outerRing.map { coordElement ->
+                        val pointArray = coordElement.jsonArray
+                        val lon = pointArray[0].jsonPrimitive.double
+                        val lat = pointArray[1].jsonPrimitive.double
+                        Pair(lat, lon)
+                    }
+                    if (points.isNotEmpty()) {
+                        elements.add(TramElement.Platform(points, name))
+                    }
                 }
             }
         }
     } catch (e: Exception) {
-        // W środowisku WASM/JS wypisujemy błąd bezpośrednio w konsoli przeglądarki
         println("BLAD PARSERA GEOJSON: ${e.message}")
         e.printStackTrace()
     }

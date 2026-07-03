@@ -20,11 +20,17 @@ import androidx.compose.ui.input.pointer.pointerInput
 import com.example.volyna_tram.domain.model.TramElement
 
 @Composable
-fun TramMap(elements: List<TramElement>, modifier: Modifier = Modifier) {
+fun TramMap(
+    elements: List<TramElement>,
+    showPlatforms: Boolean, // Dodany parametr do sterowania warstwą z poziomu UI
+    modifier: Modifier = Modifier
+) {
+    // 1. POPRAWKA: Wyciągamy punkty ze wszystkich 3 typów elementów do bounding boxa
     val allPoints = elements.flatMap { element ->
         when (element) {
             is TramElement.Track -> element.points
             is TramElement.Stop -> listOf(Pair(element.lat, element.lon))
+            is TramElement.Platform -> element.polygonPoints // Uwzględniamy perony wektorowe
         }
     }
 
@@ -38,8 +44,7 @@ fun TramMap(elements: List<TramElement>, modifier: Modifier = Modifier) {
     val latRange = maxLat - minLat
     val lonRange = maxLon - minLon
 
-    // 1. Zaczynamy od mniejszej skali bazowej, bo nasz świat wirtualny będzie gigantyczny
-    var scale by remember { mutableStateOf(0.05f) } // mniejszy start, żeby zmieścić makietę
+    var scale by remember { mutableStateOf(0.05f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
     Canvas(
@@ -48,7 +53,6 @@ fun TramMap(elements: List<TramElement>, modifier: Modifier = Modifier) {
             .background(Color(0xFFF8F9FA))
             .pointerInput(Unit) {
                 detectTransformGestures { _, pan, zoom, _ ->
-                    // Rozszerzamy zakres zoomu pod gigantyczną makietę
                     scale = (scale * zoom).coerceIn(0.001f, 10f)
                     offset += pan
                 }
@@ -80,30 +84,27 @@ fun TramMap(elements: List<TramElement>, modifier: Modifier = Modifier) {
         val width = size.width
         val height = size.height
 
-        // 2. TWORZYMY GIGANTYCZNĄ WIRTUALNĄ MAKIETĘ (Szerokość 100 000 pikseli w pamięci)
         val virtualSize = 100000f
-
-        // Obliczamy proporcję Warszawy, żeby nie rozciągać siatki w pionie/poziomie
         val aspect = (latRange / lonRange)
         val virtualWidth = virtualSize
         val virtualHeight = virtualSize * aspect.toFloat()
 
-        // Funkcja rzutująca GPS -> do gigantycznej przestrzeni wirtualnej
         fun project(lat: Double, lon: Double): Offset {
             val x = ((lon - minLon) / lonRange) * virtualWidth
             val y = ((maxLat - lat) / latRange) * virtualHeight
             return Offset(x.toFloat(), y.toFloat())
         }
 
+        // Definiujemy próg Level of Detail (LOD) dla nowej wirtualnej skali
+        val lodThreshold = 0.15f
+
         withTransform({
-            // Przesunięcie i skalowanie naszej gigantycznej makiety
             translate(left = offset.x, top = offset.y)
             scale(scaleX = scale, scaleY = scale, pivot = Offset.Zero)
         }) {
 
-            // 3. RYSUJEMY TORY (ZAŁATANE DZIURY!)
+            // 3. RYSUJEMY TORY
             elements.filterIsInstance<TramElement.Track>().forEach { track ->
-                // ZMIANA: Zmieniono z > 2 na > 1, żeby rysować również krótkie, 2-punktowe łączniki rozjazdów
                 if (track.points.size > 1) {
                     val path = Path().apply {
                         val first = project(track.points[0].first, track.points[0].second)
@@ -114,8 +115,7 @@ fun TramMap(elements: List<TramElement>, modifier: Modifier = Modifier) {
                         }
                     }
 
-                    // Wyliczamy grubość w świecie wirtualnym tak, aby na ekranie miała zawsze sensowny rozmiar w pikselach
-                    val screenStrokeWidth = 3f // Żądana stała grubość szyny na ekranie w pikselach
+                    val screenStrokeWidth = 3f
                     val virtualStrokeWidth = screenStrokeWidth / scale
 
                     drawPath(
@@ -126,32 +126,60 @@ fun TramMap(elements: List<TramElement>, modifier: Modifier = Modifier) {
                 }
             }
 
-            // 4. RYSUJEMY PRZYSTANKI (DYNAMICZNE I WYRAZISTE)
-            elements.filterIsInstance<TramElement.Stop>().forEach { stop ->
-                val stopOffset = project(stop.lat, stop.lon)
+            // 4. PERONY TRAMWAJOWE (Rysowane tylko przy zbliżeniu, gdy warstwa włączona)
+            if (showPlatforms && scale > lodThreshold) {
+                elements.filterIsInstance<TramElement.Platform>().forEach { platform ->
+                    if (platform.polygonPoints.size > 2) {
+                        val polyPath = Path().apply {
+                            val first = project(platform.polygonPoints[0].first, platform.polygonPoints[0].second)
+                            moveTo(first.x, first.y)
+                            for (i in 1 until platform.polygonPoints.size) {
+                                val next = project(platform.polygonPoints[i].first, platform.polygonPoints[i].second)
+                                lineTo(next.x, next.y)
+                            }
+                            close()
+                        }
 
-                // Wyliczamy promień w przestrzeni wirtualnej na bazie pożądanego promienia na ekranie
-                val screenRadius = 5f // Bazowy promień kropki w pikselach ekranu
-                val virtualRadius = screenRadius / scale
+                        // Wypełnienie peronu - przyjemny piaskowy beton (jak na podglądzie OSM)
+                        drawPath(
+                            path = polyPath,
+                            color = Color(0xFFE2E8F0)
+                        )
 
-                // Wyliczamy grubość obwódki w przestrzeni wirtualnej
-                val screenStroke = 1.2f
-                val virtualStroke = screenStroke / scale
+                        // Delikatna obwódka krawężnika peronowego
+                        drawPath(
+                            path = polyPath,
+                            color = Color(0xFF475569),
+                            style = Stroke(width = 1.2f / scale)
+                        )
+                    }
+                }
+            }
 
-                // Rysujemy czerwoną kropkę
-                drawCircle(
-                    color = Color(0xFFE53E3E),
-                    radius = virtualRadius,
-                    center = stopOffset
-                )
+            // 5. RYSUJEMY PRZYSTANKI JAKO KROPKI (Tylko na oddaleniu!)
+            if (scale <= lodThreshold) {
+                elements.filterIsInstance<TramElement.Stop>().forEach { stop ->
+                    val stopOffset = project(stop.lat, stop.lon)
 
-                // Nakładamy białą obwódkę dla idealnego kontrastu na skrzyżowaniach
-                drawCircle(
-                    color = Color.White,
-                    radius = virtualRadius,
-                    center = stopOffset,
-                    style = Stroke(width = virtualStroke)
-                )
+                    val screenRadius = 5f
+                    val virtualRadius = screenRadius / scale
+
+                    val screenStroke = 1.2f
+                    val virtualStroke = screenStroke / scale
+
+                    drawCircle(
+                        color = Color(0xFFE53E3E),
+                        radius = virtualRadius,
+                        center = stopOffset
+                    )
+
+                    drawCircle(
+                        color = Color.White,
+                        radius = virtualRadius,
+                        center = stopOffset,
+                        style = Stroke(width = virtualStroke)
+                    )
+                }
             }
         }
     }

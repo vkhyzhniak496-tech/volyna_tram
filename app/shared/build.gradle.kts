@@ -65,7 +65,7 @@ kotlin {
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 
             // PODMIEŃ WERSJĘ KTOORA Z 2.3.12 NA NOWOCZESNĄ SERIĘ 3.x:
-            implementation("io.ktor:ktor-client-core:3.0.0")    
+            implementation("io.ktor:ktor-client-core:3.0.0")
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -78,4 +78,5 @@ kotlin {
 
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
+
 }

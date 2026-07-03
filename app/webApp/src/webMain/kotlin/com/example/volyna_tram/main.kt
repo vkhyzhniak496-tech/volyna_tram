@@ -1,13 +1,12 @@
-package com.example.volyna_tram
+package com.example.volyna_tram.web
 
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
 import com.example.volyna_tram.presentation.TramStore
 import com.example.volyna_tram.domain.model.Tram
 import kotlinx.browser.document
-
-// 🌐 Pobieramy czysty JSON i bezpiecznie wyciągamy z niego tablicę płaskich tekstów przez natywny JS
+import com.example.volyna_tram.App
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(url, callback) => { " +
         "  fetch(url)" +
         "    .then(r => r.json())" +
@@ -18,6 +17,7 @@ import kotlinx.browser.document
         "}")
 external fun fetchTaborFromJs(url: String, callback: (String) -> Unit)
 
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(url) => { fetch(url, { method: 'PATCH' }).catch(e => console.error(e)); }")
 external fun sendPatchFromJs(url: String)
 
@@ -25,11 +25,11 @@ external fun sendPatchFromJs(url: String)
 fun main() {
     setupWebNetwork()
     val body = document.body ?: return
+    // Wywołanie bez importu, bo App.kt ma teraz ten sam pakiet: com.example.volyna_tram
     ComposeViewport(viewportContainer = body) { App() }
 }
 
 fun setupWebNetwork() {
-    // ⚠️ Twoje tajne IP Acera (już wiemy, że serwer je widzi i odbiera ruch!)
     val acerIp = "192.168.0.132:8080"
 
     TramStore.networkFetchAction = {
@@ -40,7 +40,6 @@ fun setupWebNetwork() {
             val tramwajeStringi = rawData.split(";")
 
             for (tramString in tramwajeStringi) {
-                // Rozdzielamy unikalnym separatorem, żeby nie gryzło się z przecinkami w nazwach tras!
                 val pola = tramString.split("|")
                 if (pola.size >= 3) {
                     val linia = pola[0].trim()
