@@ -58,6 +58,11 @@ fun Application.module() {
                 call.respondText("{\"error\": \"Plik grafu nie znaleziony\"}", ContentType.Application.Json)
             }
         }
+        route("/api/network/map") {
+            get("/platforms") {
+                println("Hello again, ctor")
+            }
+        }
 
 
         get("/trams") {
