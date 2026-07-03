@@ -43,27 +43,32 @@ fun Application.module() {
         }
 
         // ... Reszta Twoich getów i route
-        get("/api/network/map") {
-            // 1. Ładujemy plik z resources jako strumień bajtów
-            val inputStream = this::class.java.classLoader.getResourceAsStream("export.geojson")
-
-            if (inputStream != null) {
-                // 2. Czytamy cały tekst z pliku
-                val geoJsonText = inputStream.bufferedReader().use { it.readText() }
-
-                // 3. Odpowiadamy czystym JSON-em z odpowiednim nagłówkiem Content-Type
-                call.respondText(geoJsonText, ContentType.Application.Json)
-            } else {
-                // Zabezpieczenie na wypadek, gdyby plik zniknął lub zmienił nazwę
-                call.respondText("{\"error\": \"Plik grafu nie znaleziony\"}", ContentType.Application.Json)
-            }
-        }
         route("/api/network/map") {
+
+            // Główne zapytanie: /api/network/map
+            get {
+                // 1. Ładujemy plik z resources jako strumień bajtów
+                val inputStream = this::class.java.classLoader.getResourceAsStream("export.geojson")
+
+                if (inputStream != null) {
+                    // 2. Czytamy cały tekst z pliku
+                    val geoJsonText = inputStream.bufferedReader().use { it.readText() }
+
+                    // 3. Odpowiadamy czystym JSON-em
+                    call.respondText(geoJsonText, ContentType.Application.Json)
+                } else {
+                    // Zabezpieczenie na wypadek, gdyby plik zniknął lub zmienił nazwę
+                    call.respondText("{\"error\": \"Plik grafu nie znaleziony\"}", ContentType.Application.Json)
+                }
+            }
+
+            // Podścieżka dla peronów: /api/network/map/platforms
             get("/platforms") {
                 println("Hello again, ctor")
+                // Tutaj docelowo wstawisz ładowanie pliku z peronami (np. export_platforms.geojson)
+                call.respondText("{\"status\": \"Hello from platforms endpoint!\"}", ContentType.Application.Json)
             }
         }
-
 
         get("/trams") {
             // Serwer wypluwa oficjalny, praski tabor w formacie zgodnym z Twoim anglojęzycznym modelem
