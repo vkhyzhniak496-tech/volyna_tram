@@ -21,8 +21,8 @@ fun Application.module() {
 
     // Inicjalizujemy serwis zarządzający tramwajami w pamięci RAM
     val tramLiveService = TramLiveService()
-    tramLiveService.startSimulation(this)
-    
+    tramLiveService.startLiveTracking(this)
+
     routing {
         // Mostek CORS (zostaje bez zmian)
         intercept(ApplicationCallPipeline.Plugins) {

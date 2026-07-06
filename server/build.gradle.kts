@@ -10,6 +10,8 @@ application {
 }
 
 dependencies {
+    implementation("io.ktor:ktor-client-core:3.5.1")
+    implementation("io.ktor:ktor-client-cio:3.5.1")
     api(projects.core)
     implementation(libs.logback)
     implementation(libs.ktor.serverCore)
