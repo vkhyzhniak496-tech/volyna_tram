@@ -69,7 +69,7 @@ class TramLiveService {
                     if (response.status == HttpStatusCode.OK) {
                         val rawJson = response.bodyAsText()
                         println("[SILNIK] Odebrano dane z miasta! Rozmiar paczki: ${rawJson.length} znaków.")
-
+                        println("[DEBUG] Surowy JSON z miasta: ${rawJson.take(500)}")
                         try {
                             val jsonConfig = Json { ignoreUnknownKeys = true }
 
