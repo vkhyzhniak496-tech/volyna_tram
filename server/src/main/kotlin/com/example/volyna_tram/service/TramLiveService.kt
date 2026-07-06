@@ -69,7 +69,7 @@ class TramLiveService {
                     if (response.status == HttpStatusCode.OK) {
                         val rawJson = response.bodyAsText()
                         println("[SILNIK] Odebrano dane z miasta! Rozmiar paczki: ${rawJson.length} znaków.")
-                        println("[DEBUG] Surowy JSON z miasta: ${rawJson.take(500)}")
+
                         try {
                             val jsonConfig = Json { ignoreUnknownKeys = true }
 
@@ -77,28 +77,18 @@ class TramLiveService {
                             val baseElement = jsonConfig.parseToJsonElement(rawJson) as? JsonObject
                             val resultElement = baseElement?.get("result")
 
-                            // 4. Sprawdzamy, czy "result" to tablica, czy tekst błędu
+                            // 4. Wyciągamy dane bezpośrednio z kluczy obiektów (format dla type=2)
                             if (resultElement is JsonArray) {
                                 var updatedCount = 0
 
                                 resultElement.forEach { vehicleElement ->
                                     val vehicleObject = vehicleElement as? JsonObject
-                                    val valuesArray = vehicleObject?.get("values") as? JsonArray
 
-                                    if (valuesArray != null) {
-                                        // Mapujemy i czyścimy klucze ze spacji oraz wymuszamy małe litery
-                                        val fields = valuesArray.mapNotNull { kvElement ->
-                                            val kvObj = kvElement as? JsonObject
-                                            val key = kvObj?.get("key")?.jsonPrimitive?.content?.trim()?.lowercase()
-                                            val value = kvObj?.get("value")?.jsonPrimitive?.content
-                                            if (key != null && value != null) key to value else null
-                                        }.toMap()
-
-                                        // Szukamy wartości używając wyłącznie małych liter w kluczach
-                                        val line = fields["lines"]
-                                        val brigade = fields["brigade"]
-                                        val latStr = fields["lat"]
-                                        val lonStr = fields["lon"]
+                                    if (vehicleObject != null) {
+                                        val line = vehicleObject["Lines"]?.jsonPrimitive?.content
+                                        val brigade = vehicleObject["Brigade"]?.jsonPrimitive?.content
+                                        val latStr = vehicleObject["Lat"]?.jsonPrimitive?.content
+                                        val lonStr = vehicleObject["Lon"]?.jsonPrimitive?.content
 
                                         if (line != null && brigade != null && latStr != null && lonStr != null) {
                                             val lat = latStr.toDoubleOrNull() ?: 0.0
@@ -134,7 +124,7 @@ class TramLiveService {
                     println("[SILNIK] Błąd sieciowy/połączenia: ${e.message}")
                 }
 
-                // ⏱️ BEZPIECZNE ODSTEROWANIE - Zawsze czekamy 10 sekund przed kolejną pętlą
+                // ⏱️ Zawsze czekamy 10 sekund przed kolejną pętlą
                 delay(10000)
             }
         }
