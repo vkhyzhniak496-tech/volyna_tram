@@ -7,46 +7,37 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.request.*
 import io.ktor.http.*
-import kotlinx.serialization.Serializable
+
+// Importujemy model oraz nasz nowy serwis
 import com.example.volyna_tram.model.LiveTram
+import com.example.volyna_tram.service.TramLiveService
+
 fun main() {
     embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
         .start(wait = true)
 }
 
-// 🚋 Nowy, czysty model pod realne współrzędne z warszawskiego API
-
-
 fun Application.module() {
 
-    // Nasza tymczasowa baza w RAM na start, zanim ruszy asynchroniczny fetcher w tle
-    val liveTramsBaza = mutableListOf(
-        LiveTram("17", "03", 52.219, 21.001),
-        LiveTram("9", "12", 52.231, 21.005),
-        LiveTram("19", "01", 52.225, 21.003)
-    )
-
+    // Inicjalizujemy serwis zarządzający tramwajami w pamięci RAM
+    val tramLiveService = TramLiveService()
+    tramLiveService.startSimulation(this)
+    
     routing {
-        // 🌐 ABSOLUTNIE ODPORNY NA WERSJE MOSTEK CORS
+        // Mostek CORS (zostaje bez zmian)
         intercept(ApplicationCallPipeline.Plugins) {
             val call = this.call
-
             call.response.headers.append(HttpHeaders.AccessControlAllowOrigin, "*", safeOnly = false)
             call.response.headers.append(HttpHeaders.AccessControlAllowMethods, "GET, POST, PATCH, PUT, DELETE, OPTIONS", safeOnly = false)
             call.response.headers.append(HttpHeaders.AccessControlAllowHeaders, "*", safeOnly = false)
-
             if (call.request.httpMethod == HttpMethod.Options) {
                 call.respond(HttpStatusCode.OK)
                 return@intercept
             }
         }
 
-        // ==========================================
-        // 🗺️ WARSTWA GEOMETRII I TOPOLOGII (STATYCZNA)
-        // ==========================================
+        // Warstwa geometrii (mapa i platformy zostają bez zmian)
         route("/api/network/map") {
-
-            // Główne zapytanie o tory: /api/network/map
             get {
                 val inputStream = this::class.java.classLoader.getResourceAsStream("export.geojson")
                 if (inputStream != null) {
@@ -57,7 +48,6 @@ fun Application.module() {
                 }
             }
 
-            // Podścieżka dla peronów: /api/network/map/platforms
             get("/platforms") {
                 val inputStream = this::class.java.classLoader.getResourceAsStream("platforms.geojson")
                 if (inputStream != null) {
@@ -69,19 +59,13 @@ fun Application.module() {
             }
         }
 
-        // ==========================================
-        // 🚀 WARSTWA RUCHU TABORU (DYNAMICZNA)
-        // ==========================================
+        // Warstwa ruchu taboru – teraz spięta z Thread-Safe Managerem
         route("/api/trams") {
-
-            // 📍 NOWY ENDPOINT: /api/trams/live
-            // Czysty, bez zbędnego parsowania na piechotę. Zwraca obiekty LiveTram.
             get("/live") {
-                // Na razie wypluwamy naszą testową listę z RAM-u.
-                // Kiedy Ktor 3+ dostanie w konfiguracji ContentNegotiation z JSON,
-                // będzie można robić bezpośrednio `call.respond(liveTramsBaza)`.
-                // Bezpieczny fallback na gołym ciele, gwarantujący brak wywrotek na frontendzie:
-                val json = liveTramsBaza.joinToString(
+                // Pobieramy dane bezpośrednio z serwisu
+                val aktualneTramwaje = tramLiveService.getAllTrams()
+
+                val json = aktualneTramwaje.joinToString(
                     prefix = "[\n",
                     postfix = "\n]",
                     separator = ",\n"
