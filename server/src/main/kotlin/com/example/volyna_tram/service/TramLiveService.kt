@@ -55,7 +55,9 @@ class TramLiveService {
 
                     // 🛜 Wymuszony POST z parametrami w URL oraz czyszczeniem cache (zgodnie z instrukcją curl)
                     val response: HttpResponse = httpClient.post("https://api.um.warszawa.pl/api/action/busestrams_get/") {
-                        // 1. Czyścimy cache zgodnie z dokumentacją
+                        parameter("apikey", apiKey)
+                        parameter("type", "2")
+                        parameter("resource_id", resourceId)
                         headers {
                             append(HttpHeaders.CacheControl, "no-cache")
                         }
