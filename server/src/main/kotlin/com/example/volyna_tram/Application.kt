@@ -8,8 +8,7 @@ import io.ktor.server.routing.*
 import io.ktor.server.request.*
 import io.ktor.http.*
 
-// Importujemy model oraz nasz nowy serwis
-import com.example.volyna_tram.model.LiveTram
+// Importujemy nasz zaktualizowany serwis
 import com.example.volyna_tram.service.TramLiveService
 
 fun main() {
@@ -24,7 +23,7 @@ fun Application.module() {
     tramLiveService.startLiveTracking(this)
 
     routing {
-        // Mostek CORS (zostaje bez zmian)
+        // Mostek CORS (zabezpiecza komunikację z frontendem)
         intercept(ApplicationCallPipeline.Plugins) {
             val call = this.call
             call.response.headers.append(HttpHeaders.AccessControlAllowOrigin, "*", safeOnly = false)
@@ -36,7 +35,7 @@ fun Application.module() {
             }
         }
 
-        // Warstwa geometrii (mapa i platformy zostają bez zmian)
+        // Warstwa geometrii (statyczna siatka połączeń i perony)
         route("/api/network/map") {
             get {
                 val inputStream = this::class.java.classLoader.getResourceAsStream("export.geojson")
@@ -59,21 +58,15 @@ fun Application.module() {
             }
         }
 
-        // Warstwa ruchu taboru – teraz spięta z Thread-Safe Managerem
+        // Warstwa ruchu taboru na żywo – spięta ze standardem GeoJSON pod obiekty na mapie
         route("/api/trams") {
             get("/live") {
-                // Pobieramy dane bezpośrednio z serwisu
-                val aktualneTramwaje = tramLiveService.getAllTrams()
+                // Pobieramy dane przetworzone na standard geodezyjny FeatureCollection [LON, LAT]
+                val geoJsonTrams = tramLiveService.getTramsAsGeoJson()
 
-                val json = aktualneTramwaje.joinToString(
-                    prefix = "[\n",
-                    postfix = "\n]",
-                        separator = ",\n"
-                    ) {
-                        """  {"line": "${it.line}", "brigade": "${it.brigade}", "lat": ${it.lat}, "lon": ${it.lon}}"""
-                    }
-                    call.respondText(json, ContentType.Application.Json)
-                }
+                // Wypluwamy gotową paczkę obiektów przestrzennych do frontendu
+                call.respondText(geoJsonTrams, ContentType.Application.Json)
             }
-        }
+        } // <-- Tutaj brakowało tej klamry domykającej trasę!
     }
+}

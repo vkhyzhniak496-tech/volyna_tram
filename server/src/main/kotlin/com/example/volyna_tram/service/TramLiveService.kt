@@ -43,7 +43,33 @@ class TramLiveService {
     fun getAllTrams(): List<LiveTram> {
         return activeTrams.values.toList()
     }
+    fun getTramsAsGeoJson(): String {
+        val trams = getAllTrams()
 
+        return buildString {
+            append("""{"type":"FeatureCollection","features":[""")
+
+            trams.forEachIndexed { index, tram ->
+                append("""{""")
+                append("""  "type":"Feature",""")
+                append("""  "geometry":{""")
+                append("""    "type":"Point",""")
+                append("""    "coordinates":[${tram.lon},${tram.lat}]""") // Kolejność: LON, LAT!
+                append("""  },""")
+                append("""  "properties":{""")
+                append("""    "line":"${tram.line}",""")
+                append("""    "brigade":"${tram.brigade}"""")
+                append("""  }""")
+                append("""}""")
+
+                if (index < trams.lastIndex) {
+                    append(",")
+                }
+            }
+
+            append("]}")
+        }
+    }
     // 🚀 PRAWDZIWY SILNIK SIECIOWY W TLE
     fun startLiveTracking(scope: CoroutineScope) {
         scope.launch(Dispatchers.IO) {
@@ -130,3 +156,4 @@ class TramLiveService {
         }
     }
 }
+
