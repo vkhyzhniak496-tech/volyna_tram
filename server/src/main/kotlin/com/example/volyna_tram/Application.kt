@@ -68,12 +68,12 @@ fun Application.module() {
                 val json = aktualneTramwaje.joinToString(
                     prefix = "[\n",
                     postfix = "\n]",
-                    separator = ",\n"
-                ) {
-                    """  {"line": "${it.line}", "brigade": "${it.brigade}", "lat": ${it.lat}, "lon": ${it.lon}}"""
+                        separator = ",\n"
+                    ) {
+                        """  {"line": "${it.line}", "brigade": "${it.brigade}", "lat": ${it.lat}, "lon": ${it.lon}}"""
+                    }
+                    call.respondText(json, ContentType.Application.Json)
                 }
-                call.respondText(json, ContentType.Application.Json)
             }
         }
     }
-}

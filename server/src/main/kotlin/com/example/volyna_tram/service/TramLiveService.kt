@@ -9,7 +9,24 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.*
 
+@Serializable
+data class WarsawResponse(
+    val result: List<WarsawVehicleObject>
+)
+
+@Serializable
+data class WarsawVehicleObject(
+    val values: List<WarsawKeyValuePair>
+)
+
+@Serializable
+data class WarsawKeyValuePair(
+    val value: String,
+    val key: String
+)
 class TramLiveService {
 
     private val activeTrams = ConcurrentHashMap<String, LiveTram>()
@@ -44,39 +61,36 @@ class TramLiveService {
         return activeTrams.values.toList()
     }
 
-    // 🚀 PRAWDZIWY SILNIK SIECIOWY W TLE (RUNDA 2)
+    // 🚀 PRAWDZIWY SILNIK SIECIOWY W TLE
     fun startLiveTracking(scope: CoroutineScope) {
-        scope.launch(Dispatchers.IO) { // Przełączamy się na wątki dedykowane operacjom sieciowym (I/O)
+        scope.launch(Dispatchers.IO) {
             println("[SILNIK] Prawdziwy nasłuch Warszawy uruchomiony w tle.")
 
             while (isActive) {
                 try {
                     println("[SILNIK] Pobieranie świeżych danych z api.um.warszawa.pl...")
 
-                    // 🛜 Wymuszony POST z parametrami w URL oraz czyszczeniem cache (zgodnie z instrukcją curl)
-                    val response: HttpResponse = httpClient.post("https://api.um.warszawa.pl/api/action/busestrams_get/") {
-                        parameter("apikey", apiKey)
-                        parameter("type", "2")
-                        parameter("resource_id", resourceId)
+                    // 1. Sklejamy URL dokładnie tak, jak w dokumentacji (bez slasha na końcu przed pytajnikiem!)
+                    val fullUrl = "https://api.um.warszawa.pl/api/action/busestrams_get" +
+                            "?resource_id=$resourceId" +
+                            "&apikey=$apiKey" +
+                            "&type=2"
+
+                    // 2. Strzelamy czystym POST-em na ten adres, body zostaje puste
+                    val response: HttpResponse = httpClient.post(fullUrl) {
                         headers {
                             append(HttpHeaders.CacheControl, "no-cache")
                         }
-
-                        // 2. Pakujemy parametry jako FORMULARZ (w body), a nie w adres URL
-                        setBody(FormDataContent(Parameters.build {
-                            append("apikey", apiKey)
-                            append("type", "2")
-                            append("resource_id", resourceId)
-                        }))
                     }
 
                     if (response.status == HttpStatusCode.OK) {
                         val rawJson = response.bodyAsText()
-
-                        // Logujemy na razie sam rozmiar paczki, żeby sprawdzić stabilność łącza
                         println("[SILNIK] Odebrano dane z miasta! Rozmiar paczki: ${rawJson.length} znaków.")
 
-                        // TODO: W następnym kroku wjedzie tu parser, który rozbije strukturę i wywoła updateTram()
+                        // Tutaj wkrótce wrzucimy podgląd tego, co faktycznie przyleciało
+                        if (rawJson.length < 200) {
+                            println("[SILNIK] Treść małej paczki: $rawJson")
+                        }
                     } else {
                         println("[SILNIK] Miasto odpowiedziało błędem HTTP: ${response.status}")
                     }
@@ -85,11 +99,9 @@ class TramLiveService {
                     println("[SILNIK] Zatrzymano zadanie tła.")
                     throw e
                 } catch (e: Exception) {
-                    // Blokada wywrotki – jeśli miasto rzuci błędem połączenia, serwer żyje dalej
                     println("[SILNIK] Błąd sieciowy/połączenia: ${e.message}")
                 }
 
-                // Urzędnicy potwierdzili odświeżanie co 10 sekund, więc lecimy gęstym strumieniem
                 delay(10000)
             }
         }
