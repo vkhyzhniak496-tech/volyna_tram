@@ -86,21 +86,20 @@ class TramLiveService {
                                     val valuesArray = vehicleObject?.get("values") as? JsonArray
 
                                     if (valuesArray != null) {
-                                        // Mapujemy pary klucz-wartość na słownik
+                                        // Mapujemy i czyścimy klucze ze spacji oraz wymuszamy małe litery
                                         val fields = valuesArray.mapNotNull { kvElement ->
                                             val kvObj = kvElement as? JsonObject
-                                            val key = kvObj?.get("key")?.jsonPrimitive?.content
+                                            val key = kvObj?.get("key")?.jsonPrimitive?.content?.trim()?.lowercase()
                                             val value = kvObj?.get("value")?.jsonPrimitive?.content
                                             if (key != null && value != null) key to value else null
                                         }.toMap()
 
-                                        val line = fields["Lines"]
-                                        val brigade = fields["Brigade"]
-                                        val latStr = fields["Lat"]
-                                        val lonStr = fields["Lon"]
-                                        if (updatedCount == 0) {
-                                            println("[DEBUG NOCNY] Zawartość pól pierwszego pojazdu: $fields")
-                                        }
+                                        // Szukamy wartości używając wyłącznie małych liter w kluczach
+                                        val line = fields["lines"]
+                                        val brigade = fields["brigade"]
+                                        val latStr = fields["lat"]
+                                        val lonStr = fields["lon"]
+
                                         if (line != null && brigade != null && latStr != null && lonStr != null) {
                                             val lat = latStr.toDoubleOrNull() ?: 0.0
                                             val lon = lonStr.toDoubleOrNull() ?: 0.0
