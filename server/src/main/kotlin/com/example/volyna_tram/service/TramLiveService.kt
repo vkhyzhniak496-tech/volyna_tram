@@ -98,7 +98,9 @@ class TramLiveService {
                                         val brigade = fields["Brigade"]
                                         val latStr = fields["Lat"]
                                         val lonStr = fields["Lon"]
-
+                                        if (updatedCount == 0) {
+                                            println("[DEBUG NOCNY] Zawartość pól pierwszego pojazdu: $fields")
+                                        }
                                         if (line != null && brigade != null && latStr != null && lonStr != null) {
                                             val lat = latStr.toDoubleOrNull() ?: 0.0
                                             val lon = lonStr.toDoubleOrNull() ?: 0.0
