@@ -1,42 +1,44 @@
 package com.example.volyna_tram.presentation
 
+import com.example.volyna_tram.domain.model.Tram
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import com.example.volyna_tram.domain.model.Tram
 
 object TramStore {
-    private val _tabor = MutableStateFlow(
-        listOf(
-            Tram("13", "13", "Cmentarz Wolski", "Kawęczyńska-Bazylika", "On Time"),
-            Tram("26", "26", "Metro Młociny", "Wiatraczna", "Delayed"),
-            Tram("4", "4", "Żerań Wschodni", "Wyścigi", "On Time")
-        )
-    )
-    val tabor: StateFlow<List<Tram>> = _tabor.asStateFlow()
+    // Zmiana z List na Map zapewnia ultra-szybki czas dostępu O(1)
+    private val _taborMap = MutableStateFlow<Map<String, Tram>>(emptyMap())
+    val taborMap: StateFlow<Map<String, Tram>> = _taborMap.asStateFlow()
 
-    // Globalne zmienne na funkcje sieciowe, które wstrzykniemy z zewnątrz
     var networkFetchAction: (() -> Unit)? = null
-    var networkPatchAction: ((String, String) -> Unit)? = null
 
-    fun updateTaborList(nowaLista: List<Tram>) {
-        _tabor.value = nowaLista
+    /**
+     * Nadpisuje całą mapę pojazdów nowymi danymi z API.
+     */
+    fun updateTaborList(noweTramwaje: List<Tram>) {
+        _taborMap.value = noweTramwaje.associateBy { it.id }
     }
 
-    fun updateTramState(linia: String, newState: String) {
-        val statusNaSerwer = when (newState) {
-            "On Time" -> "Płynnie"
-            "Delayed" -> "Opóźnienie na Targowej"
-            else -> "W trasie"
+    /**
+     * Błyskawiczna aktualizacja pozycji lub dodanie pojedynczego wozu bez przeszukiwania tablic!
+     */
+    fun updateSingleTram(tram: Tram) {
+        _taborMap.update { currentMap ->
+            currentMap + (tram.id to tram)
         }
+    }
 
-        // Odpalamy strzał na serwer przez wstrzykniętą akcję, jeśli istnieje
-        networkPatchAction?.invoke(linia, statusNaSerwer)
-
-        _tabor.update { list ->
-            list.map { tram ->
-                if (tram.id == linia) tram.copy(state = newState) else tram
+    /**
+     * Zmiana stanu wozu (np. opóźnienie) prosto po unikalnym kluczu.
+     */
+    fun updateTramState(id: String, newState: String) {
+        _taborMap.update { currentMap ->
+            val tram = currentMap[id]
+            if (tram != null) {
+                currentMap + (id to tram.copy(state = newState))
+            } else {
+                currentMap
             }
         }
     }

@@ -17,8 +17,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.volyna_tram.domain.model.Tram
-@Composable
 
+@Composable
 fun TramWidget(
     tram: Tram,
     modifier: Modifier = Modifier
@@ -27,19 +27,19 @@ fun TramWidget(
         "Early" -> Color(0xFF1E88E5)
         "On Time" -> Color(0xFF4CAF50)
         "Delayed" -> Color(0xFFE53935)
-        else -> Color(0xFF757575)
+        else -> Color(0xFF1A365D) // Nasz ciemny granat dla domyślnego "W ruchu"
     }
 
     Box(
         modifier = modifier
-            .width(120.dp)
-            .height(60.dp)
+            .width(140.dp)
+            .height(70.dp) // Lekko powiększony pod bogatsze info
             .background(color = backgroundColor, shape = RoundedCornerShape(8.dp))
             .clickable {
                 val nextState = when (tram.state) {
-                    "On Time" -> "Delayed"
-                    "Delayed" -> "Early"
-                    else -> "On Time"
+                    "W ruchu" -> "Delayed"
+                    "Delayed" -> "On Time"
+                    else -> "W ruchu"
                 }
                 TramStore.updateTramState(tram.id, nextState)
             }
@@ -48,15 +48,21 @@ fun TramWidget(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "Linia ${tram.number}",
+                text = "Linia ${tram.line}", // 🚀 Czyta czysty numer linii (np. "17")
                 color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
+                text = "Brygada: ${tram.brigade}", // 🚀 Wyświetla odseparowaną brygadę!
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
                 text = tram.state,
-                color = Color.White.copy(alpha = 0.8f),
-                fontSize = 12.sp
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 11.sp
             )
         }
     }

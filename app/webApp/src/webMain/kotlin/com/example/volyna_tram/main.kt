@@ -6,26 +6,30 @@ import com.example.volyna_tram.presentation.TramStore
 import com.example.volyna_tram.domain.model.Tram
 import kotlinx.browser.document
 import com.example.volyna_tram.App
+
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(url, callback) => { " +
         "  fetch(url)" +
         "    .then(r => r.json())" +
         "    .then(data => {" +
-        "      let arr = data.map(t => t.linia + '|' + t.trasa + '|' + t.status);" +
-        "      callback(arr.join(';'));" +
+        "      if (data && data.features) {" +
+        "        let serialized = data.features.map(f => {" +
+        "          let line = f.properties.line || '??';" +
+        "          let brigade = f.properties.brigade || '??';" +
+        "          let lon = f.geometry.coordinates[0] || 0.0;" +
+        "          let lat = f.geometry.coordinates[1] || 0.0;" +
+        "          return line + ',' + brigade + ',' + lat + ',' + lon;" +
+        "        }).join(';');" +
+        "        callback(serialized);" +
+        "      }" +
         "    }).catch(e => console.error(e));" +
         "}")
 external fun fetchTaborFromJs(url: String, callback: (String) -> Unit)
-
-@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
-@JsFun("(url) => { fetch(url, { method: 'PATCH' }).catch(e => console.error(e)); }")
-external fun sendPatchFromJs(url: String)
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
     setupWebNetwork()
     val body = document.body ?: return
-    // Wywołanie bez importu, bo App.kt ma teraz ten sam pakiet: com.example.volyna_tram
     ComposeViewport(viewportContainer = body) { App() }
 }
 
@@ -33,25 +37,34 @@ fun setupWebNetwork() {
     val acerIp = "192.168.0.132:8080"
 
     TramStore.networkFetchAction = {
-        fetchTaborFromJs("http://$acerIp/api/trams") { rawData ->
+        // Uderzamy pod właściwy endpoint czasu rzeczywistego
+        fetchTaborFromJs("http://$acerIp/api/trams/live") { rawData ->
             if (rawData.isEmpty()) return@fetchTaborFromJs
 
             val nowaLista = mutableListOf<Tram>()
             val tramwajeStringi = rawData.split(";")
 
             for (tramString in tramwajeStringi) {
-                val pola = tramString.split("|")
-                if (pola.size >= 3) {
-                    val linia = pola[0].trim()
-                    val trasa = pola[1].trim()
-                    val statusPolski = pola[2].trim()
+                val pola = tramString.split(",")
+                if (pola.size >= 4) {
+                    val line = pola[0].trim()
+                    val brigade = pola[1].trim()
+                    val lat = pola[2].toDoubleOrNull() ?: 0.0
+                    val lon = pola[3].toDoubleOrNull() ?: 0.0
 
-                    val stateConverted = if (statusPolski.contains("Opóźnienie")) "Delayed" else "On Time"
-                    val przystanki = trasa.split("-")
-                    val start = przystanki.firstOrNull()?.trim() ?: "Zajezdnia"
-                    val terminus = przystanki.lastOrNull()?.trim() ?: "Praga"
+                    // 🚀 Tworzymy unikalne ID składu i pakujemy w nowy, czysty format!
+                    val id = "${line}_${brigade}"
 
-                    nowaLista.add(Tram(linia, linia, start, terminus, stateConverted))
+                    nowaLista.add(
+                        Tram(
+                            id = id,
+                            line = line,
+                            brigade = brigade,
+                            lat = lat,
+                            lon = lon,
+                            state = "W ruchu"
+                        )
+                    )
                 }
             }
 
