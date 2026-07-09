@@ -13,7 +13,7 @@ kotlin {
 }
 dependencies {
     implementation(projects.app.shared)
-
+    implementation("io.ktor:ktor-client-plugins:2.3.12")
     implementation(libs.androidx.activity.compose)
 
     implementation(libs.compose.uiToolingPreview)

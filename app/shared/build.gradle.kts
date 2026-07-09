@@ -50,6 +50,7 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
+            implementation("io.ktor:ktor-client-okhttp:3.0.0")
         }
         commonMain.dependencies {
             api(projects.core)
