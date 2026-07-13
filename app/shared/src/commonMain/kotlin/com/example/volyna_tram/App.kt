@@ -19,6 +19,18 @@ import com.example.volyna_tram.presentation.TramStore
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun App() {
@@ -39,8 +51,11 @@ fun TramScreen() {
 
         // IP Twojego serwera na Acerze
         val baseUrl = "http://192.168.0.132:8080"
+// 1. Definicje stanów błędów
+        var infrastructureError by remember { mutableStateOf<String?>(null) }
+        var liveDataError by remember { mutableStateOf<String?>(null) }
 
-        // 1. Ładowanie bazy sieci (tory i przystanki)
+        // 2. Ładowanie bazy sieci (tory i przystanki)
         LaunchedEffect(Unit) {
             try {
                 val response = client.get("$baseUrl/api/network/map").bodyAsText()
@@ -63,12 +78,16 @@ fun TramScreen() {
                 }
 
                 tramElements = tracks + cleanStops
+                // Resetujemy ewentualny błąd infrastruktury
+                infrastructureError = null
             } catch (e: Exception) {
                 e.printStackTrace()
+                // Pokazujemy błąd ładowania infrastruktury na ekranie startowym
+                infrastructureError = "Nie można pobrać infrastruktury. Serwer jest obecnie niedostępny."
             }
         }
 
-        // 2. Leniwe ładowanie peronów po kliknięciu przycisku
+        // 3. Leniwe ładowanie peronów po kliknięciu przycisku
         LaunchedEffect(showPlatforms) {
             if (showPlatforms && platformElements.isEmpty()) {
                 try {
@@ -81,14 +100,18 @@ fun TramScreen() {
                             else -> element
                         }
                     }
+                    // Pomyślne pobranie peronów może zresetować błąd danych na mapie
+                    liveDataError = null
                 } catch (e: Exception) {
                     println("Błąd ładowania peronów: ${e.message}")
                     e.printStackTrace()
+                    // Jeśli perony padną, informujemy o tym użytkownika na mapie
+                    liveDataError = "Błąd pobierania peronów. Sprawdź połączenie z serwerem."
                 }
             }
         }
 
-        // 3. Cykliczne pobieranie pozycji i ładowanie ich bezpośrednio do TramStore
+        // 4. Pobieranie taboru LIVE w pętli (Co 10 sekund)
         LaunchedEffect(Unit) {
             val jsonDecoder = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
             while (true) {
@@ -96,25 +119,32 @@ fun TramScreen() {
                     val response = client.get("$baseUrl/api/trams/live").bodyAsText()
                     val data = jsonDecoder.decodeFromString<GeoJsonTramResponse>(response)
 
-                    // 🚀 Przepuszczamy GeoJSON przez toDomain() i pakujemy czyste obiekty do sklepu!
                     val domainTrams = data.features.mapNotNull { it.toDomain() }
                     TramStore.updateTaborList(domainTrams)
 
+                    // Połączenie z taborem wróciło do normy -> gasimy błąd live na mapie
+                    liveDataError = null
+
                 } catch (e: Exception) {
                     println("Błąd pobierania taboru live: ${e.message}")
+                    // Gdy tabor leży, pokazujemy to na czerwonym pasku nad mapą
+                    liveDataError = "Brak połączenia z serwerem. Oczekuję na dane o tramwajach..."
                 }
                 kotlinx.coroutines.delay(10000)
             }
         }
+
         LaunchedEffect(taborMap) {
             if (taborMap.isNotEmpty() && isFirstLoad) {
-                kotlinx.coroutines.delay(200) // Daj sekundę na „wskoczenie” wozów na kropki bazowe
+                kotlinx.coroutines.delay(200)
                 isFirstLoad = false
             }
         }
+
+        // 5. STRUKTURA UI
         if (tramElements.isNotEmpty()) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // 🚀 Przekazujemy listę wartości z naszej zoptymalizowanej mapy
+                // 🚀 Renderujemy mapę
                 TramMap(
                     baseElements = tramElements,
                     platformElements = if (showPlatforms) platformElements else emptyList(),
@@ -124,6 +154,21 @@ fun TramScreen() {
                     modifier = Modifier.fillMaxSize()
                 )
 
+                // 🚀 Jeśli tabor live / perony rzucą błędem, pokazujemy dyskretny, czerwony pasek na górze mapy
+                if (liveDataError != null) {
+                    Text(
+                        text = liveDataError!!,
+                        color = Color.White,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.TopCenter)
+                            .background(Color.Red.copy(alpha = 0.8f))
+                            .padding(16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                // Przycisk peronów
                 Button(
                     onClick = { showPlatforms = !showPlatforms },
                     modifier = Modifier
@@ -134,9 +179,40 @@ fun TramScreen() {
                 }
             }
         } else {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = "Ładowanie sieci tramwajowej z wozowni...")
+            // 🚀 EKRAN STARTOWY / ŁADOWANIA (Gdy nie ma jeszcze danych sieci bazowej)
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                if (infrastructureError != null) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(24.dp)
+                    ) {
+                        Text(
+                            text = "Błąd połączenia z bazą",
+                            color = Color.Red,
+                            textAlign = TextAlign.Center
+                        )
+
+                        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = infrastructureError!!,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    // Czysty, wyśrodkowany stan ładowania na starcie
+                    Text(
+                        text = "Ładowanie sieci tramwajowej z wozowni...",
+                        textAlign = TextAlign.Center
+                    )
+                }
+
             }
+
         }
     }
-}
+        }
