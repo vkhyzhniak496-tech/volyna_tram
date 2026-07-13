@@ -26,7 +26,35 @@ class TramLiveService {
             requestTimeoutMillis = 5000
             connectTimeoutMillis = 5000
         }
+        install(HttpRequestRetry) {
+            maxRetries = 3
+            exponentialDelay() // Uruchamia Exponential Backoff
+            retryIf { request, response ->
+                response.status.value == 504
+            }
+        }
+
+        // Walidator odpowiedzi do zarządzania UI i logami
+        HttpResponseValidator {
+            handleResponseExceptionWithRequest { exception, request ->
+                val clientException =
+                    exception as? ResponseException ?: return@handleResponseExceptionWithRequest
+                val exceptionResponse = clientException.response
+
+                if (exceptionResponse.status == HttpStatusCode.GatewayTimeout) {
+
+                    // 1. Zalogowanie zdarzenia do naszego trzeciego filaru monitoringu (Tracing)
+                    // W tym miejscu wpinamy nasz system logowania
+                    println("TRACING: Wykryto błąd 504 Gateway Timeout dla żądania: ${request.url}")
+
+                    // 2. Przekazanie informacji do UI aplikacji
+                    // Rzucamy własny wyjątek, który warstwa UI (np. ViewModel) złapie i wyświetli jako Toast/Snackbar
+                    throw GISTimeoutException("Otwórz klapę")
+                }
+            }
+        }
     }
+    class GISTimeoutException(message: String) : Exception(message)
 
     init {
         // Nasz tabor startowy na wypadek, gdybyśmy chcieli mieć fallback w RAM-ie

@@ -31,7 +31,7 @@ fun TramScreen() {
         var tramElements by remember { mutableStateOf<List<TramElement>>(emptyList()) }
         var showPlatforms by remember { mutableStateOf(false) }
         var platformElements by remember { mutableStateOf<List<TramElement>>(emptyList()) }
-
+        var isFirstLoad by remember { mutableStateOf(true) }
         // 🚀 Podpinamy się pod nasze Jedyne Źródło Prawdy w architekturze (O(1) Map)
         val taborMap by TramStore.taborMap.collectAsState()
 
@@ -106,7 +106,12 @@ fun TramScreen() {
                 kotlinx.coroutines.delay(10000)
             }
         }
-
+        LaunchedEffect(taborMap) {
+            if (taborMap.isNotEmpty() && isFirstLoad) {
+                kotlinx.coroutines.delay(200) // Daj sekundę na „wskoczenie” wozów na kropki bazowe
+                isFirstLoad = false
+            }
+        }
         if (tramElements.isNotEmpty()) {
             Box(modifier = Modifier.fillMaxSize()) {
                 // 🚀 Przekazujemy listę wartości z naszej zoptymalizowanej mapy
@@ -115,6 +120,7 @@ fun TramScreen() {
                     platformElements = if (showPlatforms) platformElements else emptyList(),
                     liveTrams = taborMap.values.toList(),
                     showPlatforms = showPlatforms,
+                    isFirstLoad = isFirstLoad,
                     modifier = Modifier.fillMaxSize()
                 )
 
