@@ -16,30 +16,9 @@ object TramStore {
     /**
      * Nadpisuje całą mapę pojazdów nowymi danymi z API.
      */
-    fun updateTaborList(noweTramwaje: List<Tram>) {
-        _taborMap.value = noweTramwaje.associateBy { it.id }
-    }
-
-    /**
-     * Błyskawiczna aktualizacja pozycji lub dodanie pojedynczego wozu bez przeszukiwania tablic!
-     */
-    fun updateSingleTram(tram: Tram) {
-        _taborMap.update { currentMap ->
-            currentMap + (tram.id to tram)
-        }
-    }
-
-    /**
-     * Aktualizacja prędkości wozu prosto po unikalnym kluczu.
-     */
-    fun updateTramSpeed(id: String, newSpeed: Double) {
-        _taborMap.update { currentMap ->
-            val tram = currentMap[id]
-            if (tram != null) {
-                currentMap + (id to tram.copy(speed = newSpeed))
-            } else {
-                currentMap
-            }
-        }
+// W obiekcie TramStore aktualizujemy/podmieniamy tylko konkretny wóz w Mapie O(1)
+    fun updateTaborList(trams: List<Tram>) {
+        val newMap = trams.associateBy { it.id }
+        _taborMap.value = newMap
     }
 }

@@ -28,6 +28,7 @@ data class TramGeometry(
 data class TramProperties(
     val line: String,
     val brigade: String,
+    val speed: Double? = null,
     val timestamp: Long? = null
 )
 
@@ -42,7 +43,12 @@ fun TramFeature.toDomain(): Tram? {
     val lat = geometry.coordinates.getOrNull(1) ?: return null
     val line = properties.line.trim()
     val brigade = properties.brigade.trim()
-    val timestamp = Clock.System.now().toEpochMilliseconds()
+
+    // Używamy czasu przysłanego z serwera, a gdyby go brakowało - czasu lokalnego
+    val timestamp = properties.timestamp ?: Clock.System.now().toEpochMilliseconds()
+
+    // Przekazujemy realną prędkość przeliczoną przez serwer (lub 0.0 jako fallback)
+    val parsedSpeed = properties.speed ?: 0.0
 
     return Tram(
         id = "${line}_${brigade}",
@@ -51,6 +57,6 @@ fun TramFeature.toDomain(): Tram? {
         lat = lat,
         lon = lon,
         timestamp = timestamp,
-        speed=0.0
+        speed = parsedSpeed // <-- Podpinamy zmienną z wyliczoną prędkością!
     )
 }

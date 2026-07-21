@@ -1,15 +1,13 @@
 package com.example.volyna_tram
 
+import com.example.volyna_tram.service.TramLiveService
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
+import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import io.ktor.server.request.*
-import io.ktor.http.*
-
-// Importujemy nasz zaktualizowany serwis
-import com.example.volyna_tram.service.TramLiveService
 
 fun main() {
     embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
@@ -17,17 +15,15 @@ fun main() {
 }
 
 fun Application.module() {
-
-    // Inicjalizujemy serwis zarządzający tramwajami w pamięci RAM
     val tramLiveService = TramLiveService()
     tramLiveService.startLiveTracking(this)
 
     routing {
-        // Mostek CORS (zabezpiecza komunikację z frontendem)
+        // Obsługa CORS dla frontendu (Web / Android)
         intercept(ApplicationCallPipeline.Plugins) {
             val call = this.call
             call.response.headers.append(HttpHeaders.AccessControlAllowOrigin, "*", safeOnly = false)
-            call.response.headers.append(HttpHeaders.AccessControlAllowMethods, "GET, POST, PATCH, PUT, DELETE, OPTIONS", safeOnly = false)
+            call.response.headers.append(HttpHeaders.AccessControlAllowMethods, "GET, POST, OPTIONS", safeOnly = false)
             call.response.headers.append(HttpHeaders.AccessControlAllowHeaders, "*", safeOnly = false)
             if (call.request.httpMethod == HttpMethod.Options) {
                 call.respond(HttpStatusCode.OK)
@@ -35,7 +31,7 @@ fun Application.module() {
             }
         }
 
-        // Warstwa geometrii (statyczna siatka połączeń i perony)
+        // 1. Warstwa Geometrii Infrastruktury (Overpass GeoJSON)
         route("/api/network/map") {
             get {
                 val inputStream = this::class.java.classLoader.getResourceAsStream("export.geojson")
@@ -58,15 +54,12 @@ fun Application.module() {
             }
         }
 
-        // Warstwa ruchu taboru na żywo – spięta ze standardem GeoJSON pod obiekty na mapie
+        // 2. Warstwa Ruchu Taboru z Gotową Prędkością
         route("/api/trams") {
             get("/live") {
-                // Pobieramy dane przetworzone na standard geodezyjny FeatureCollection [LON, LAT]
                 val geoJsonTrams = tramLiveService.getTramsAsGeoJson()
-
-                // Wypluwamy gotową paczkę obiektów przestrzennych do frontendu
                 call.respondText(geoJsonTrams, ContentType.Application.Json)
             }
-        } // <-- Tutaj brakowało tej klamry domykającej trasę!
+        }
     }
 }

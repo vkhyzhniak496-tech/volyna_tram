@@ -13,7 +13,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.volyna_tram.data.GeoJsonTramResponse
 import com.example.volyna_tram.domain.model.TramElement
-import com.example.volyna_tram.data.parser.parseNetworkGeoJson
+import com.example.volyna_tram.data.parseNetworkGeoJson
 import com.example.volyna_tram.data.toDomain
 import com.example.volyna_tram.presentation.TramMap
 import com.example.volyna_tram.presentation.TramStore

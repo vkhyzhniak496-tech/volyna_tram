@@ -1,7 +1,12 @@
 package com.example.volyna_tram.domain.model
 
 sealed interface TramElement {
-    data class Track(val points: List<Pair<Double, Double>>) : TramElement {
+    data class Track(
+        val id: String = "",
+        val points: List<Pair<Double, Double>>,
+        val maxSpeed: Double = 50.0,         // Prędkość dopuszczalna/projektowa z Overpass (km/h)
+        val averageSpeed: Double? = null     // Zmierzona średnia prędkość live
+    ) : TramElement {
         val cumulativeDistances: DoubleArray = DoubleArray(points.size)
         val totalLength: Double
 

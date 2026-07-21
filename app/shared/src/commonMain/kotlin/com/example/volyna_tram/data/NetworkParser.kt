@@ -1,6 +1,5 @@
-package com.example.volyna_tram.data.parser
+package com.example.volyna_tram.data
 
-import com.example.volyna_tram.data.NetworkGeoJsonCollection
 import com.example.volyna_tram.domain.model.TramElement
 import kotlinx.serialization.json.*
 
@@ -17,10 +16,17 @@ fun parseNetworkGeoJson(jsonString: String): List<TramElement> {
 
         for (feature in collection.features) {
             val geom = feature.geometry ?: continue
-            val name = feature.properties?.get("name")?.jsonPrimitive?.contentOrNull ?: "Nieznany"
+            val properties = feature.properties
+            val name = properties?.get("name")?.jsonPrimitive?.contentOrNull ?: "Nieznany"
 
             when (geom.type) {
                 "LineString" -> {
+                    val trackId = properties?.get("@id")?.jsonPrimitive?.contentOrNull ?: ""
+
+                    // Odczytujemy zróżnicowane prędkości (15, 30, 50, etc.)
+                    val rawMaxSpeed = properties?.get("maxspeed")?.jsonPrimitive?.contentOrNull
+                    val maxSpeed = rawMaxSpeed?.toDoubleOrNull() ?: 50.0
+
                     val coordsArray = geom.coordinates.jsonArray
                     val points = coordsArray.map { coordElement ->
                         val pointArray = coordElement.jsonArray
@@ -28,8 +34,15 @@ fun parseNetworkGeoJson(jsonString: String): List<TramElement> {
                         val lat = pointArray[1].jsonPrimitive.double
                         Pair(lat, lon)
                     }
+
                     if (points.isNotEmpty()) {
-                        elements.add(TramElement.Track(points))
+                        elements.add(
+                            TramElement.Track(
+                                id = trackId,
+                                points = points,
+                                maxSpeed = maxSpeed
+                            )
+                        )
                     }
                 }
                 "Point" -> {
