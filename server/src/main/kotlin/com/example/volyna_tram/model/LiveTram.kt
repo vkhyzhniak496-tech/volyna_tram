@@ -7,5 +7,6 @@ data class LiveTram(
     val line: String,
     val brigade: String,
     val lat: Double,
-    val lon: Double
+    val lon: Double,
+    val timestamp: Long=System.currentTimeMillis()
 )

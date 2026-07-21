@@ -10,7 +10,6 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -21,34 +20,38 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
+import com.example.volyna_tram.domain.model.Tram
 import com.example.volyna_tram.domain.model.TramElement
 import kotlin.math.roundToInt
+import kotlinx.datetime.*
+import kotlin.time.Clock
 
 @Composable
 fun TramMap(
     baseElements: List<TramElement>,
     platformElements: List<TramElement>,
-    liveTrams: List<com.example.volyna_tram.domain.model.Tram>,
+    liveTrams: List<Tram>,
     showPlatforms: Boolean,
-    isFirstLoad: Boolean, // 🚀 Nowy parametr z App.kt!
+    isFirstLoad: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val allPoints = baseElements.flatMap { element ->
-        when (element) {
-            is TramElement.Track -> element.points
-            is TramElement.Stop -> listOf(Pair(element.lat, element.lon))
-            is TramElement.Platform -> emptyList()
+    val allPoints = remember(baseElements) {
+        baseElements.flatMap { element ->
+            when (element) {
+                is TramElement.Track -> element.points
+                is TramElement.Stop -> listOf(Pair(element.lat, element.lon))
+                is TramElement.Platform -> emptyList()
+            }
         }
     }
 
     if (allPoints.isEmpty()) return
 
-    val minLat = allPoints.minOf { it.first }
-    val maxLat = allPoints.maxOf { it.first }
-    val minLon = allPoints.minOf { it.second }
-    val maxLon = allPoints.maxOf { it.second }
+    val minLat = remember(allPoints) { allPoints.minOf { it.first } }
+    val maxLat = remember(allPoints) { allPoints.maxOf { it.first } }
+    val minLon = remember(allPoints) { allPoints.minOf { it.second } }
+    val maxLon = remember(allPoints) { allPoints.maxOf { it.second } }
 
-    // Wyjściowy stabilny zoom i przesunięcie
     var scale by remember { mutableStateOf(0.01f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
@@ -72,24 +75,19 @@ fun TramMap(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFF8F9FA))
-            // 🚀 POTĘŻNY, JEDYNY BLOK DOTYKU (Pinch-to-zoom + Pan pod kciuk)
             .pointerInput(Unit) {
                 detectTransformGestures { centroid, pan, zoom, _ ->
                     val oldScale = scale
-                    // Obcinamy zoom do bezpiecznych wartości dla skali 100k
                     val newScale = (scale * zoom).coerceIn(0.002f, 0.5f)
 
                     if (oldScale != newScale) {
                         val scaleRatio = newScale / oldScale
-                        // Magia matematyczna: zoom celuje dokładnie w środek między Twoimi palcami (centroid)
                         offset = centroid - (centroid - offset) * scaleRatio
                     }
-                    // Przesunięcie działa płynnie niezależnie od stopnia przybliżenia
                     offset += pan
                     scale = newScale
                 }
             }
-            // 🚀 ODDZIELNY BLOK DLA MYSZKI (Desktop)
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
@@ -114,7 +112,7 @@ fun TramMap(
                 }
             }
     ) {
-        // WARSTWA 1: INFRASTRUKTURA
+        // WARSTWA 1: INFRASTRUKTURA (Tory, Perony, Przystanki)
         Canvas(modifier = Modifier.fillMaxSize()) {
             withTransform({
                 translate(left = offset.x, top = offset.y)
@@ -169,7 +167,7 @@ fun TramMap(
             }
         }
 
-        // WARSTWA 2: TRAMWAJE
+        // WARSTWA 2: TRAMWAJE LIVE
         liveTrams.forEach { tram ->
             key(tram.id) {
                 AnimatedTramMarker(
@@ -177,7 +175,7 @@ fun TramMap(
                     project = ::project,
                     globalScale = scale,
                     globalOffset = offset,
-                    isFirstLoad = isFirstLoad // 🚀 Przekazujemy stan pierwszego ładowania
+                    isFirstLoad = isFirstLoad
                 )
             }
         }
@@ -186,20 +184,25 @@ fun TramMap(
 
 @Composable
 fun AnimatedTramMarker(
-    tram: com.example.volyna_tram.domain.model.Tram,
+    tram: Tram,
     project: (Double, Double) -> Offset,
     globalScale: Float,
     globalOffset: Offset,
-    isFirstLoad: Boolean // 🚀 Odbieramy flagę
+    isFirstLoad: Boolean
 ) {
-    // 🧠 Jeśli to pierwsze wejście, snap() odcina animację z punktu (0,0) i natychmiast osadza wóz
+    val currentTime = Clock.System.now().toEpochMilliseconds()
+    val timeDiffSeconds = (currentTime - tram.timestamp) / 1000L
+    // 🚀 LOGIKA TELEPORTACJI:
+
+    val useSnap = isFirstLoad || timeDiffSeconds > 15
+
     val animLat by animateFloatAsState(
         targetValue = tram.lat.toFloat(),
-        animationSpec = if (isFirstLoad) snap() else tween(durationMillis = 10000, easing = LinearEasing)
+        animationSpec = if (useSnap) snap() else tween(durationMillis = 10000, easing = LinearEasing)
     )
     val animLon by animateFloatAsState(
         targetValue = tram.lon.toFloat(),
-        animationSpec = if (isFirstLoad) snap() else tween(durationMillis = 10000, easing = LinearEasing)
+        animationSpec = if (useSnap) snap() else tween(durationMillis = 10000, easing = LinearEasing)
     )
 
     val virtualOffset = project(animLat.toDouble(), animLon.toDouble())
@@ -209,8 +212,6 @@ fun AnimatedTramMarker(
     val screenTramRadius = 7f
     val screenStroke = 1.5f
 
-    // 🚀 Optymalizacja: rysujemy kropkę jako mały Box przesunięty o piksele.
-    // Dzięki temu ponowne przerysowanie (Recomposition) dotyczy tylko tego mikro-Canvasu, a nie całej mapy!
     Canvas(
         modifier = Modifier
             .fillMaxSize()

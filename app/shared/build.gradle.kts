@@ -67,6 +67,7 @@ kotlin {
 
             // PODMIEŃ WERSJĘ KTOORA Z 2.3.12 NA NOWOCZESNĄ SERIĘ 3.x:
             implementation("io.ktor:ktor-client-core:3.0.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

@@ -30,13 +30,13 @@ object TramStore {
     }
 
     /**
-     * Zmiana stanu wozu (np. opóźnienie) prosto po unikalnym kluczu.
+     * Aktualizacja prędkości wozu prosto po unikalnym kluczu.
      */
-    fun updateTramState(id: String, newState: String) {
+    fun updateTramSpeed(id: String, newSpeed: Double) {
         _taborMap.update { currentMap ->
             val tram = currentMap[id]
             if (tram != null) {
-                currentMap + (id to tram.copy(state = newState))
+                currentMap + (id to tram.copy(speed = newSpeed))
             } else {
                 currentMap
             }

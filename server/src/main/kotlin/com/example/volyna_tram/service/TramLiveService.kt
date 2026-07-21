@@ -49,7 +49,7 @@ class TramLiveService {
 
                     // 2. Przekazanie informacji do UI aplikacji
                     // Rzucamy własny wyjątek, który warstwa UI (np. ViewModel) złapie i wyświetli jako Toast/Snackbar
-                    throw GISTimeoutException("Otwórz klapę")
+                    throw GISTimeoutException("Otwórz klapę"    )
                 }
             }
         }
@@ -87,6 +87,7 @@ class TramLiveService {
                 append("""  "properties":{""")
                 append("""    "line":"${tram.line}",""")
                 append("""    "brigade":"${tram.brigade}"""")
+                append("""    "timestamp":${tram.timestamp}""")
                 append("""  }""")
                 append("""}""")
 
