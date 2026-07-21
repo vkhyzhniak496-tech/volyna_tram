@@ -7,10 +7,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -24,9 +25,10 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.volyna_tram.domain.model.Tram
 import com.example.volyna_tram.domain.model.TramElement
@@ -40,6 +42,7 @@ fun TramMap(
     liveTrams: List<Tram>,
     showPlatforms: Boolean,
     isFirstLoad: Boolean,
+    onTogglePlatforms: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val boundingBox = remember(baseElements) { calculateBoundingBox(baseElements) } ?: return
@@ -47,41 +50,110 @@ fun TramMap(
     var scale by remember { mutableStateOf(0.01f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
+    var showSpeedLayer by remember { mutableStateOf(false) }
+
     val projection = remember(boundingBox) { MapProjection(boundingBox) }
     val lodThreshold = 0.15f
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color(0xFFF8F9FA))
-            .handleGestures(
+    Box(modifier = modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF8F9FA))
+                .pointerInput(Unit) {
+                    detectTransformGestures { centroid, pan, zoom, _ ->
+                        val oldScale = scale
+                        // 🚀 ULTRA ZOOM: Zwiększony limit z 20.0f do 150.0f dla oglądania rozstawu torów!
+                        val newScale = (scale * zoom).coerceIn(0.001f, 15.0f)
+
+                        val targetOffset = if (oldScale != newScale) {
+                            centroid - (centroid - offset) * (newScale / oldScale)
+                        } else {
+                            offset
+                        }
+                        scale = newScale
+                        offset = targetOffset + pan
+                    }
+                }
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            if (event.type == PointerEventType.Scroll) {
+                                val scrollDelta = event.changes.first().scrollDelta.y
+                                val zoomFactor = if (scrollDelta < 0) 1.1f else 0.9f
+
+                                val centroid = event.changes.first().position
+                                val oldScale = scale
+                                val newScale = (scale * zoomFactor).coerceIn(0.001f, 15.0f)
+
+                                offset = centroid - (centroid - offset) * (newScale / oldScale)
+                                scale = newScale
+                            }
+                        }
+                    }
+                }
+        ) {
+            // WARSTWA 1: INFRASTRUKTURA
+            InfrastructureCanvas(
+                baseElements = baseElements,
+                platformElements = platformElements,
+                showPlatforms = showPlatforms,
                 scale = scale,
                 offset = offset,
-                onTransform = { newScale, newOffset ->
-                    scale = newScale
-                    offset = newOffset
-                }
+                lodThreshold = lodThreshold,
+                project = projection::project
             )
-    ) {
-        // WARSTWA 1: INFRASTRUKTURA
-        InfrastructureCanvas(
-            baseElements = baseElements,
-            platformElements = platformElements,
-            showPlatforms = showPlatforms,
-            scale = scale,
-            offset = offset,
-            lodThreshold = lodThreshold,
-            project = projection::project
-        )
 
-        // WARSTWA 2: TRAMWAJE LIVE
-        TramMarkersLayer(
-            liveTrams = liveTrams,
-            scale = scale,
-            offset = offset,
-            isFirstLoad = isFirstLoad,
-            project = projection::project
-        )
+            // WARSTWA 2: TRAMWAJE LIVE
+            TramMarkersLayer(
+                liveTrams = liveTrams,
+                scale = scale,
+                offset = offset,
+                isFirstLoad = isFirstLoad,
+                showSpeedLayer = showSpeedLayer,
+                project = projection::project
+            )
+        }
+
+        // PIONOWY PASEK PRZYCISKÓW W PRAWYM DOLNYM ROGU
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.End
+        ) {
+            ElevatedFilterChip(
+                selected = showPlatforms,
+                onClick = onTogglePlatforms,
+                label = {
+                    Text(
+                        text = if (showPlatforms) "Perony: ON" else "Perony: OFF",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFF475569),
+                    selectedLabelColor = Color.White
+                )
+            )
+
+            ElevatedFilterChip(
+                selected = showSpeedLayer,
+                onClick = { showSpeedLayer = !showSpeedLayer },
+                label = {
+                    Text(
+                        text = if (showSpeedLayer) "Prędkość: ON" else "Prędkość: OFF",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFF2E7D32),
+                    selectedLabelColor = Color.White
+                )
+            )
+        }
     }
 }
 
@@ -120,50 +192,6 @@ private fun calculateBoundingBox(baseElements: List<TramElement>): BoundingBox? 
         maxLon = allPoints.maxOf { it.second }
     )
 }
-
-// --- OBSŁUGA GESTÓW ---
-private fun Modifier.handleGestures(
-    scale: Float,
-    offset: Offset,
-    onTransform: (Float, Offset) -> Unit
-): Modifier = this
-    .pointerInput(Unit) {
-        detectTransformGestures { centroid, pan, zoom, _ ->
-            val oldScale = scale
-            val newScale = (scale * zoom).coerceIn(0.002f, 0.5f)
-            var newOffset = offset + pan
-
-            if (oldScale != newScale) {
-                val scaleRatio = newScale / oldScale
-                newOffset = centroid - (centroid - newOffset) * scaleRatio
-            }
-            onTransform(newScale, newOffset)
-        }
-    }
-    .pointerInput(Unit) {
-        awaitPointerEventScope {
-            while (true) {
-                val event = awaitPointerEvent()
-                if (event.type == PointerEventType.Scroll) {
-                    val change = event.changes.first()
-                    val scrollDelta = change.scrollDelta.y
-                    val mousePosition = change.position
-
-                    val zoomFactor = if (scrollDelta < 0) 1.1f else 0.9f
-                    val oldScale = scale
-                    val newScale = (scale * zoomFactor).coerceIn(0.002f, 0.5f)
-                    var newOffset = offset
-
-                    if (oldScale != newScale) {
-                        val scaleRatio = newScale / oldScale
-                        newOffset = mousePosition - (mousePosition - offset) * scaleRatio
-                    }
-                    onTransform(newScale, newOffset)
-                    change.consume()
-                }
-            }
-        }
-    }
 
 // --- RYSOWANIE INFRASTRUKTURY ---
 @Composable
@@ -209,12 +237,8 @@ private fun DrawScope.drawTracks(
                     lineTo(next.x, next.y)
                 }
             }
-            // 🎨 RÓŻNICOWANIE WYGLĄDU TORÓW W ZALEŻNOŚCI OD MAXSPEED Z OVERPASSA
-            val strokeWidth = when {
-                track.maxSpeed <= 20.0 -> 1.5f / scale  // Zwrotnice / ciasne łuki
-                track.maxSpeed >= 50.0 -> 3.5f / scale  // Główne trasy
-                else -> 2.5f / scale
-            }
+            // 🚀 Tory skalują się proporcjonalnie do powiększenia (zabezpieczenie przed rozmyciem)
+            val strokeWidth = (if (track.maxSpeed <= 20.0) 1.5f else 3.0f) / (scale.coerceAtLeast(0.005f))
             val trackColor = if (track.maxSpeed <= 20.0) Color(0xFF64748B) else Color(0xFF1A365D)
 
             drawPath(
@@ -267,6 +291,7 @@ private fun TramMarkersLayer(
     scale: Float,
     offset: Offset,
     isFirstLoad: Boolean,
+    showSpeedLayer: Boolean,
     project: (Double, Double) -> Offset
 ) {
     liveTrams.forEach { tram ->
@@ -276,7 +301,8 @@ private fun TramMarkersLayer(
                 project = project,
                 globalScale = scale,
                 globalOffset = offset,
-                isFirstLoad = isFirstLoad
+                isFirstLoad = isFirstLoad,
+                showSpeedLayer = showSpeedLayer
             )
         }
     }
@@ -288,7 +314,8 @@ fun AnimatedTramMarker(
     project: (Double, Double) -> Offset,
     globalScale: Float,
     globalOffset: Offset,
-    isFirstLoad: Boolean
+    isFirstLoad: Boolean,
+    showSpeedLayer: Boolean
 ) {
     val currentTime = Clock.System.now().toEpochMilliseconds()
     val timeDiffSeconds = (currentTime - tram.timestamp) / 1000L
@@ -307,28 +334,36 @@ fun AnimatedTramMarker(
     val screenX = (virtualOffset.x * globalScale) + globalOffset.x
     val screenY = (virtualOffset.y * globalScale) + globalOffset.y
 
-    // 🚀 DYNAMICZNY KOLOR W ZALEŻNOŚCI OD PRĘDKOŚCI W KM/H DOWIEZIONEJ PRZEZ SERWER
-    val speedColor = when {
-        tram.speed < 3.0 -> Color(0xFFE53E3E)    // Czerwony: Stoi na przystanku / w korku
-        tram.speed < 20.0 -> Color(0xFFFFB300)   // Żółty/Pomarańczowy: Wolna jazda / manewr
-        else -> Color(0xFF2E7D32)                // Zielony: Płynna jazda
+    val tramColor = if (showSpeedLayer) {
+        when {
+            tram.speed < 3.0 -> Color(0xFFE53E3E)
+            tram.speed < 20.0 -> Color(0xFFFFB300)
+            else -> Color(0xFF2E7D32)
+        }
+    } else {
+        Color(0xFFFFB300)
     }
 
-    val textMeasurer = rememberTextMeasurer()
-    val labelText = "${tram.line} (${tram.speed.roundToInt()} km/h)"
+    // Dynamiczna czcionka zależna od poziomu przybliżenia
+    val fontFloatSize = (10f * (globalScale * 10f)).coerceIn(8f, 16f)
+    val dynamicFontSize = fontFloatSize.sp
 
-    val textLayoutResult = remember(labelText) {
+    val textMeasurer = rememberTextMeasurer()
+    val labelText = if (showSpeedLayer) "${tram.line} (${tram.speed.roundToInt()} km/h)" else tram.line
+
+    val textLayoutResult = remember(labelText, dynamicFontSize) {
         textMeasurer.measure(
             text = labelText,
             style = TextStyle(
                 color = Color.White,
-                fontSize = 10.sp,
+                fontSize = dynamicFontSize,
                 fontWeight = FontWeight.Bold
             )
         )
     }
 
-    val screenTramRadius = 8f
+    // Promień kropki rośnie wraz z przybliżeniem, ale z rozsądnymi granicami
+    val screenTramRadius = (7f * (globalScale * 5f)).coerceIn(5f, 22f)
     val screenStroke = 2f
 
     Canvas(
@@ -336,9 +371,8 @@ fun AnimatedTramMarker(
             .fillMaxSize()
             .offset { IntOffset(screenX.roundToInt(), screenY.roundToInt()) }
     ) {
-        // 1. Kropka tramwaju
         drawCircle(
-            color = speedColor,
+            color = tramColor,
             radius = screenTramRadius,
             center = Offset.Zero
         )
@@ -349,31 +383,28 @@ fun AnimatedTramMarker(
             style = Stroke(width = screenStroke)
         )
 
-        // 2. Plakietka informacyjna nad tramwajem [Linia (km/h)]
-        if (globalScale > 0.05f) { // Pokazuj plakietki przy większym przybliżeniu (LOD)
-            val padding = 6f
-            val rectWidth = textLayoutResult.size.width + (padding * 2)
-            val rectHeight = textLayoutResult.size.height + (padding * 2)
+        if (showSpeedLayer || globalScale > 0.01f) {
+            val pad = (4f * (globalScale * 5f)).coerceIn(3f, 10f)
+            val rectWidth = textLayoutResult.size.width + (pad * 2f)
+            val rectHeight = textLayoutResult.size.height + (pad * 2f)
 
             val badgeOffset = Offset(
                 x = -rectWidth / 2f,
                 y = -screenTramRadius - rectHeight - 4f
             )
 
-            // Tło plakietki
             drawRoundRect(
-                color = Color(0xCC1A365D),
+                color = Color(0xEE1A365D),
                 topLeft = badgeOffset,
                 size = Size(rectWidth, rectHeight),
-                cornerRadius = CornerRadius(6f, 6f)
+                cornerRadius = CornerRadius(4f, 4f)
             )
 
-            // Tekst na plakietce
             drawText(
                 textLayoutResult = textLayoutResult,
                 topLeft = Offset(
-                    x = badgeOffset.x + padding,
-                    y = badgeOffset.y + padding
+                    x = badgeOffset.x + pad,
+                    y = badgeOffset.y + pad
                 )
             )
         }

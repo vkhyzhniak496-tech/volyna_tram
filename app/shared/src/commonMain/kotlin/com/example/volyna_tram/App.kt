@@ -2,7 +2,6 @@ package com.example.volyna_tram
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -127,6 +126,7 @@ fun TramScreen() {
                 liveTrams = taborMap.values.toList(),
                 showPlatforms = showPlatforms,
                 isFirstLoad = isFirstLoad,
+                onTogglePlatforms = { showPlatforms = !showPlatforms },
                 modifier = Modifier.fillMaxSize()
             )
 
@@ -141,15 +141,6 @@ fun TramScreen() {
                         .padding(16.dp),
                     textAlign = TextAlign.Center
                 )
-            }
-
-            Button(
-                onClick = { showPlatforms = !showPlatforms },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(24.dp)
-            ) {
-                Text(if (showPlatforms) "Ukryj perony" else "Pokaż perony")
             }
         }
     } else {
