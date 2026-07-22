@@ -1,6 +1,6 @@
 package com.example.volyna_tram.domain.model
 
-sealed interface TramElement {
+sealed interface TramElement     {
     data class Track(
         val id: String = "",
         val points: List<Pair<Double, Double>>,
