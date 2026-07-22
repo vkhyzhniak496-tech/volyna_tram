@@ -1,4 +1,4 @@
-package com.example.volyna_tram.data
+package com.example.volyna_tram.data.network
 
 import com.example.volyna_tram.domain.model.TramElement
 import kotlinx.serialization.json.*

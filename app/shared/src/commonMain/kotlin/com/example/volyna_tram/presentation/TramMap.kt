@@ -32,10 +32,31 @@ fun TramMap(
     var offset by remember { mutableStateOf(Offset.Zero) }
     var showSpeedLayer by remember { mutableStateOf(false) }
 
+    // 🎯 STAN ZAZNACZONYCH LINII (Multi-select)
+    var selectedLines by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    // 1. Wyciągamy i sortujemy numerycznie unikalne linie z taboru
+    val availableLines = remember(liveTrams) {
+        liveTrams.map { it.line.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .sortedBy { it.toIntOrNull() ?: Int.MAX_VALUE }
+    }
+
+    // 2. Przefiltrowane tramwaje pod przekazanie na płótno
+    val filteredTrams = remember(liveTrams, selectedLines) {
+        if (selectedLines.isEmpty()) {
+            liveTrams
+        } else {
+            liveTrams.filter { it.line.trim() in selectedLines }
+        }
+    }
+
     val projection = remember(boundingBox) { MapProjection(boundingBox) }
     val lodThreshold = 0.15f
 
     Box(modifier = modifier.fillMaxSize()) {
+        // PŁÓTNO MAPY
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -84,9 +105,9 @@ fun TramMap(
                 project = projection::project
             )
 
-            // WARSTWA 2: TRAMWAJE LIVE
+            // WARSTWA 2: TRAMWAJE LIVE (Przekazujemy PRZEFILTROWANE tramwaje!)
             TramMarkersLayer(
-                liveTrams = liveTrams,
+                liveTrams = filteredTrams,
                 scale = scale,
                 offset = offset,
                 isFirstLoad = isFirstLoad,
@@ -95,7 +116,23 @@ fun TramMap(
             )
         }
 
-        // PIONOWY PASEK PRZYCISKÓW W PRAWYM DOLNYM ROGU
+        // 🔝 3. INTELIGENTNY FILTR LINII NA GÓRZE EKRANU
+        LineFilterBar(
+            availableLines = availableLines,
+            selectedLines = selectedLines,
+            visibleTramsCount = filteredTrams.size,
+            onLineToggled = { line ->
+                selectedLines = if (line in selectedLines) {
+                    selectedLines - line
+                } else {
+                    selectedLines + line
+                }
+            },
+            onClearAll = { selectedLines = emptySet() },
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
+
+        // 🔘 4. PIONOWY PASEK PRZYCISKÓW WARSTW W PRAWYM DOLNYM ROGU
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)

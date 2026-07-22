@@ -1,4 +1,4 @@
-package com.example.volyna_tram.data
+package com.example.volyna_tram.data.tram
 
 
 import com.example.volyna_tram.domain.model.Tram

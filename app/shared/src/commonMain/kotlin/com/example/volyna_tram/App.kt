@@ -10,17 +10,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.volyna_tram.data.GeoJsonTramResponse
+import com.example.volyna_tram.data.tram.TramRepository
+import com.example.volyna_tram.data.network.parseNetworkGeoJson
+import com.example.volyna_tram.data.tram.parseTramGeoJson
 import com.example.volyna_tram.domain.model.TramElement
-import com.example.volyna_tram.data.parseNetworkGeoJson
-import com.example.volyna_tram.data.toDomain
 import com.example.volyna_tram.presentation.TramMap
-import com.example.volyna_tram.presentation.TramStore
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.delay
-import kotlinx.serialization.json.Json
 
 @Composable
 fun App() {
@@ -36,33 +34,19 @@ fun TramScreen() {
     var platformElements by remember { mutableStateOf<List<TramElement>>(emptyList()) }
     var isFirstLoad by remember { mutableStateOf(true) }
 
-    val taborMap by TramStore.taborMap.collectAsState()
+    // 🚀 Obserwujemy stan taboru z nowego TramRepository w warstwie data
+    val taborMap by TramRepository.taborMap.collectAsState()
     val client = remember { HttpClient() }
     val baseUrl = "http://192.168.0.132:8080"
 
     var infrastructureError by remember { mutableStateOf<String?>(null) }
     var liveDataError by remember { mutableStateOf<String?>(null) }
 
-    // 1. Pobieranie tła/sieci bazowej
+    // 1. Pobieranie bazy infrastruktury (tory + przefiltrowane przystanki)
     LaunchedEffect(Unit) {
         try {
             val response = client.get("$baseUrl/api/network/map").bodyAsText()
-            val parsedElements = parseNetworkGeoJson(response)
-
-            val tracks = parsedElements.filterIsInstance<TramElement.Track>()
-            val rawStops = parsedElements.filterIsInstance<TramElement.Stop>()
-
-            val cleanStops = mutableListOf<TramElement.Stop>()
-            for (stop in rawStops) {
-                val isDuplicate = cleanStops.any { existing ->
-                    val dLat = existing.lat - stop.lat
-                    val dLon = existing.lon - stop.lon
-                    (kotlin.math.sqrt(dLat * dLat + dLon * dLon) * 111000) < 15.0
-                }
-                if (!isDuplicate) cleanStops.add(stop)
-            }
-
-            tramElements = tracks + cleanStops
+            tramElements = fetchAndCleanInfrastructure(response)
             infrastructureError = null
         } catch (e: Exception) {
             e.printStackTrace()
@@ -75,14 +59,9 @@ fun TramScreen() {
         if (showPlatforms && platformElements.isEmpty()) {
             try {
                 val response = client.get("$baseUrl/api/network/map/platforms").bodyAsText()
-                val parsedPlatforms = parseNetworkGeoJson(response)
-
-                platformElements = parsedPlatforms.distinctBy { element ->
-                    when (element) {
-                        is TramElement.Platform -> element.polygonPoints
-                        else -> element
-                    }
-                }
+                platformElements = parseNetworkGeoJson(response)
+                    .filterIsInstance<TramElement.Platform>()
+                    .distinctBy { it.polygonPoints }
                 liveDataError = null
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -91,16 +70,13 @@ fun TramScreen() {
         }
     }
 
-    // 3. Pętla pobierania sygnału LIVE co 10s
+    // 3. Pętla pobierania sygnału LIVE co 10s (z wykorzystaniem parseTramGeoJson)
     LaunchedEffect(Unit) {
-        val jsonDecoder = Json { ignoreUnknownKeys = true }
         while (true) {
             try {
                 val response = client.get("$baseUrl/api/trams/live").bodyAsText()
-                val data = jsonDecoder.decodeFromString<GeoJsonTramResponse>(response)
-
-                val domainTrams = data.features.mapNotNull { it.toDomain() }
-                TramStore.updateTaborList(domainTrams)
+                val domainTrams = parseTramGeoJson(response)
+                TramRepository.updateTabor(domainTrams)
                 liveDataError = null
             } catch (e: Exception) {
                 liveDataError = "Brak połączenia z serwerem. Oczekuję na dane..."
@@ -117,7 +93,7 @@ fun TramScreen() {
         }
     }
 
-    // 4. RENDEROWANIE WIDOKU
+    // 4. RENDEROWANIE WIDOKU (Wydzielone czyste stany)
     if (tramElements.isNotEmpty()) {
         Box(modifier = Modifier.fillMaxSize()) {
             TramMap(
@@ -131,38 +107,75 @@ fun TramScreen() {
             )
 
             if (liveDataError != null) {
-                Text(
-                    text = liveDataError!!,
-                    color = Color.White,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopCenter)
-                        .background(Color.Red.copy(alpha = 0.8f))
-                        .padding(16.dp),
-                    textAlign = TextAlign.Center
-                )
+                ErrorBanner(message = liveDataError!!)
             }
         }
+    } else if (infrastructureError != null) {
+        InfrastructureErrorView(message = infrastructureError!!)
     } else {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            if (infrastructureError != null) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(24.dp)
-                ) {
-                    Text(text = "Błąd połączenia z bazą", color = Color.Red)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = infrastructureError!!, textAlign = TextAlign.Center)
-                }
-            } else {
-                Text(
-                    text = "Ładowanie sieci tramwajowej z wozowni...",
-                    textAlign = TextAlign.Center
-                )
-            }
+        LoadingView()
+    }
+}
+
+// --- POMOCNICZA LOGIKA GEOMETRII I WIDOKI DEDYKOWANE ---
+
+private fun fetchAndCleanInfrastructure(jsonString: String): List<TramElement> {
+    val parsedElements = parseNetworkGeoJson(jsonString)
+    val tracks = parsedElements.filterIsInstance<TramElement.Track>()
+    val rawStops = parsedElements.filterIsInstance<TramElement.Stop>()
+
+    val cleanStops = mutableListOf<TramElement.Stop>()
+    for (stop in rawStops) {
+        val isDuplicate = cleanStops.any { existing ->
+            val dLat = existing.lat - stop.lat
+            val dLon = existing.lon - stop.lon
+            (kotlin.math.sqrt(dLat * dLat + dLon * dLon) * 111000) < 15.0
         }
+        if (!isDuplicate) cleanStops.add(stop)
+    }
+
+    return tracks + cleanStops
+}
+
+@Composable
+private fun ErrorBanner(message: String) {
+    Text(
+        text = message,
+        color = Color.White,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Red.copy(alpha = 0.8f))
+            .padding(16.dp),
+        textAlign = TextAlign.Center
+    )
+}
+
+@Composable
+private fun InfrastructureErrorView(message: String) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(24.dp)
+        ) {
+            Text(text = "Błąd połączenia z bazą", color = Color.Red)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = message, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+@Composable
+private fun LoadingView() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "Ładowanie sieci tramwajowej z wozowni...",
+            textAlign = TextAlign.Center
+        )
     }
 }
