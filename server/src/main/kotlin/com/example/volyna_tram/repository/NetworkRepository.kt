@@ -5,7 +5,7 @@ import java.io.InputStream
 
 object NetworkRepository {
 
-    private const val CACHE_FILE_NAME = "export.geojson"
+    private const val CACHE_FILE_NAME = "network.geojson"
 
     @Volatile
     private var cachedBaseMapJson: String = ""
