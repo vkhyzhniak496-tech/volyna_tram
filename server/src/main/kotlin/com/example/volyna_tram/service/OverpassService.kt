@@ -8,44 +8,49 @@ import java.net.URLEncoder
 
 class OverpassService(private val httpClient: HttpClient) {
 
-    private val overpassUrl = "https://overpass-api.de/api/interpreter"
+    // Lista serwerów Overpass (jeśli pierwszy zgłosi 504, próbuje drugiego)
+    private val overpassEndpoints = listOf(
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://overpass-api.de/api/interpreter"
+    )
 
     suspend fun fetchWarsawTramNetwork(): String? {
+        // Bounding Box dla obszaru Warszawy: (South, West, North, East)
+        // Zapytanie z BBOX wykonuje się w 1 sekundę i nie przeciąża serwera!
         val rawQuery = """
-            [out:json][timeout:60];
-            area["name"="Warszawa"]["admin_level"="8"]->.searchArea;
+            [out:json][timeout:25];
             (
-              way["railway"="tram"](area.searchArea);
-              node["railway"="tram_stop"](area.searchArea);
+              way["railway"="tram"](52.09,20.85,52.37,21.27);
+              node["railway"="tram_stop"](52.09,20.85,52.37,21.27);
             );
             out body;
             >;
             out skel qt;
         """.trimIndent()
 
-        return try {
-            // Overpass oczekuje parametru data=zakodowane_zapytanie
-            val formBody = "data=" + URLEncoder.encode(rawQuery, "UTF-8")
+        val formBody = "data=" + URLEncoder.encode(rawQuery, "UTF-8")
 
-            val response: HttpResponse = httpClient.post(overpassUrl) {
-                setBody(formBody)
-                contentType(ContentType.Application.FormUrlEncoded)
-            }
+        for (endpoint in overpassEndpoints) {
+            try {
+                println("[OVERPASS] 🚀 Próba pobrania z: $endpoint")
+                val response: HttpResponse = httpClient.post(endpoint) {
+                    setBody(formBody)
+                    contentType(ContentType.Application.FormUrlEncoded)
+                }
 
-            if (response.status == HttpStatusCode.OK) {
-                val osmJson = response.bodyAsText()
-                println("[OVERPASS] ✅ Pomyślnie pobrano dane z OpenStreetMap (${osmJson.length} znaków)!")
-                osmJson
-            } else {
-                val errorBody = response.bodyAsText()
-                println("[OVERPASS] ❌ Błąd Overpass API Status: ${response.status}")
-                println("[OVERPASS] ❌ Odpowiedź serwera: $errorBody")
-                null
+                if (response.status == HttpStatusCode.OK) {
+                    val osmJson = response.bodyAsText()
+                    println("[OVERPASS] ✅ Sukces! Pobrano ${osmJson.length} znaków z $endpoint")
+                    return osmJson
+                } else {
+                    println("[OVERPASS] ⚠️ Błąd $endpoint Status: ${response.status}")
+                }
+            } catch (e: Exception) {
+                println("[OVERPASS] ⚠️ Wyjątek połączenia z $endpoint: ${e.message}")
             }
-        } catch (e: Exception) {
-            println("[OVERPASS] ❌ Wyjątek podczas połączenia z Overpass: ${e.message}")
-            e.printStackTrace()
-            null
         }
+
+        println("[OVERPASS] ❌ Wszystkie endpointy Overpass zawiodły.")
+        return null
     }
 }
