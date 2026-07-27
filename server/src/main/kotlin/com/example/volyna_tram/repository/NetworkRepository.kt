@@ -5,7 +5,7 @@ import java.io.InputStream
 
 object NetworkRepository {
 
-    private const val CACHE_FILE_NAME = "network.geojson"
+    private const val CACHE_FILE_NAME = "cached_network.geojson"
 
     @Volatile
     private var cachedBaseMapJson: String = ""
@@ -25,50 +25,46 @@ object NetworkRepository {
         try {
             val cacheFile = File(CACHE_FILE_NAME)
 
+            // 1. Jeśli na dysku jest plik cache z nową siecią, wczytaj go!
             if (cacheFile.exists() && cacheFile.length() > 0) {
-                // 1. Priorytet: Zapisana świeża sieć z dysku
                 cachedBaseMapJson = cacheFile.readText()
                 networkVersion = cacheFile.lastModified()
-                println("[NETWORK_REPO] 💾 Załadowano najnowszą sieć z pliku cache ($CACHE_FILE_NAME). Wersja: $networkVersion")
+                println("[NETWORK_REPO] 💾 Załadowano najnowszą zaktualizowaną sieć z pliku $CACHE_FILE_NAME.")
             } else {
-                // 2. Fallback: Domyślny plik z zasobów projektowych
+                // 2. Jeśli plik cache nie istnieje, wczytaj fabryczny schemat z resources
                 val mapStream: InputStream? = this::class.java.classLoader.getResourceAsStream("export.geojson")
                 if (mapStream != null) {
                     cachedBaseMapJson = mapStream.bufferedReader().use { it.readText() }
-                    println("[NETWORK_REPO] 📦 Załadowano domyślną sieć fabryczną z resources (export.geojson).")
-                } else {
-                    println("[NETWORK_REPO] ⚠️ Brak pliku fabrycznego w resources.")
+                    println("[NETWORK_REPO] 📦 Załadowano domyślną sieć z resources (export.geojson).")
                 }
             }
 
-            // Ładowanie peronów
             val platformStream: InputStream? = this::class.java.classLoader.getResourceAsStream("platforms.geojson")
             if (platformStream != null) {
                 cachedPlatformsJson = platformStream.bufferedReader().use { it.readText() }
             }
 
         } catch (e: Exception) {
-            println("[NETWORK_REPO] ❌ Błąd podczas ładowania zasobów sieci: ${e.message}")
+            println("[NETWORK_REPO] ❌ Błąd podczas ładowania sieci: ${e.message}")
         }
     }
 
     fun getBaseMapGeoJson(): String = cachedBaseMapJson
-
     fun getPlatformsGeoJson(): String = cachedPlatformsJson
 
     /**
-     * Podmienia sieć w RAM oraz zapisuje ją na dysku serwera.
+     * Zapisuje nową sieć do RAM oraz do pliku cache na dysku
      */
     fun updateNetwork(newMapJson: String, newPlatformsJson: String = "") {
         if (newMapJson.isNotEmpty()) {
             cachedBaseMapJson = newMapJson
 
-            // Zapisujemy na dysk, żeby po restarcie serwera zmiana nie przepadła!
+            // Zapisujemy na dysk, żeby po restarcie serwera wczytała się nowa sieć!
             try {
                 File(CACHE_FILE_NAME).writeText(newMapJson)
-                println("[NETWORK_REPO] 💾 Zapisano nową sieć do pliku cache na dysku.")
+                println("[NETWORK_REPO] 💾 Zapisano nową sieć z Overpassa do pliku $CACHE_FILE_NAME.")
             } catch (e: Exception) {
-                println("[NETWORK_REPO] ⚠️ Nie udało się zapisać cache na dysku: ${e.message}")
+                println("[NETWORK_REPO] ⚠️ Błąd zapisu pliku cache: ${e.message}")
             }
         }
 
@@ -77,6 +73,6 @@ object NetworkRepository {
         }
 
         networkVersion = System.currentTimeMillis()
-        println("[NETWORK_REPO] 🔄 Zaktualizowano sieć w RAM! Nowa wersja: $networkVersion")
+        println("[NETWORK_REPO] 🔄 Zaktualizowano wersję sieci w RAM: $networkVersion")
     }
 }
