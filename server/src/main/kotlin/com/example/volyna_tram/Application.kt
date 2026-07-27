@@ -14,6 +14,7 @@ import io.ktor.client.engine.cio.*
 import com.example.volyna_tram.repository.NetworkRepository
 import com.example.volyna_tram.service.OverpassService
 import com.example.volyna_tram.service.TramLiveService
+import com.example.volyna_tram.utils.GeoJsonFormatter
 
 fun main() {
     embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
@@ -56,12 +57,24 @@ fun Application.module() {
                 }
             }
 
-            // 🚀 Ręczne wymuszenie pobrania świeżej geometrii z Overpass
+            //  Ręczne wymuszenie pobrania świeżej geometrii z Overpass
             post("/refresh") {
+                println("[NETWORK]  Pobieranie sieci z Overpass API...")
                 val rawOsmData = overpassService.fetchWarsawTramNetwork()
+
                 if (rawOsmData != null) {
-                    // TUTAJ w przyszłości przepuścimy rawOsmData przez konwerter do GeoJSON
-                    call.respondText("""{"status": "success", "bytes": ${rawOsmData.length}}""", ContentType.Application.Json)
+                    println("[NETWORK] ⚙️ Konwertowanie OSM do GeoJSON za pomocą GeoJsonFormatter...")
+
+                    // 1. Przepuszczamy dane przez nasz edytowany GeoJsonFormatter
+                    val formattedGeoJson = GeoJsonFormatter.formatOsmToGeoJson(rawOsmData)
+
+                    // 2. Podmieniamy dane w pamięci RAM serwera i aktualizujemy wersję!
+                    networkRepository.updateNetwork(formattedGeoJson)
+
+                    call.respondText(
+                        """{"status": "success", "networkVersion": ${networkRepository.networkVersion}}""",
+                        ContentType.Application.Json
+                    )
                 } else {
                     call.respondText("""{"status": "error"}""", ContentType.Application.Json, HttpStatusCode.InternalServerError)
                 }
