@@ -1,13 +1,15 @@
 package com.example.volyna_tram
 
-import com.example.volyna_tram.service.TramLiveService
-import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
-import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.request.*
+import io.ktor.http.*
+
+import com.example.volyna_tram.repository.NetworkRepository
+import com.example.volyna_tram.service.TramLiveService
 
 fun main() {
     embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
@@ -15,15 +17,18 @@ fun main() {
 }
 
 fun Application.module() {
+
     val tramLiveService = TramLiveService()
     tramLiveService.startLiveTracking(this)
 
+    val networkRepository = NetworkRepository
+
     routing {
-        // Obsługa CORS dla frontendu (Web / Android)
+        // Mostek CORS (zabezpiecza komunikację z frontendem)
         intercept(ApplicationCallPipeline.Plugins) {
             val call = this.call
             call.response.headers.append(HttpHeaders.AccessControlAllowOrigin, "*", safeOnly = false)
-            call.response.headers.append(HttpHeaders.AccessControlAllowMethods, "GET, POST, OPTIONS", safeOnly = false)
+            call.response.headers.append(HttpHeaders.AccessControlAllowMethods, "GET, POST, PATCH, PUT, DELETE, OPTIONS", safeOnly = false)
             call.response.headers.append(HttpHeaders.AccessControlAllowHeaders, "*", safeOnly = false)
             if (call.request.httpMethod == HttpMethod.Options) {
                 call.respond(HttpStatusCode.OK)
@@ -31,30 +36,32 @@ fun Application.module() {
             }
         }
 
-        // 1. Warstwa Geometrii Infrastruktury (Overpass GeoJSON)
-        route("/api/network/map") {
-            get {
-                val inputStream = this::class.java.classLoader.getResourceAsStream("export.geojson")
-                if (inputStream != null) {
-                    val geoJsonText = inputStream.bufferedReader().use { it.readText() }
-                    call.respondText(geoJsonText, ContentType.Application.Json)
+        // Warstwa geometrii (serwowana błyskawicznie z RAM)
+        route("/api/network") {
+            get("/map") {
+                val geoJson = networkRepository.getBaseMapGeoJson()
+                if (geoJson.isNotEmpty()) {
+                    call.respondText(geoJson, ContentType.Application.Json)
                 } else {
-                    call.respondText("{\"error\": \"Plik grafu nie znaleziony\"}", ContentType.Application.Json, HttpStatusCode.NotFound)
+                    call.respondText("{\"error\": \"Plik grafu nie znaleziony w RAM\"}", ContentType.Application.Json, HttpStatusCode.NotFound)
                 }
             }
 
-            get("/platforms") {
-                val inputStream = this::class.java.classLoader.getResourceAsStream("platforms.geojson")
-                if (inputStream != null) {
-                    val platformsJsonText = inputStream.bufferedReader().use { it.readText() }
-                    call.respondText(platformsJsonText, ContentType.Application.Json)
+            get("/map/platforms") {
+                val platformsJson = networkRepository.getPlatformsGeoJson()
+                if (platformsJson.isNotEmpty()) {
+                    call.respondText(platformsJson, ContentType.Application.Json)
                 } else {
-                    call.respondText("{\"error\": \"Plik peronów nie został znaleziony\"}", ContentType.Application.Json, HttpStatusCode.NotFound)
+                    call.respondText("{\"error\": \"Plik peronów nie został znaleziony w RAM\"}", ContentType.Application.Json, HttpStatusCode.NotFound)
                 }
+            }
+
+            get("/version") {
+                call.respondText("""{"version": ${networkRepository.networkVersion}}""", ContentType.Application.Json)
             }
         }
 
-        // 2. Warstwa Ruchu Taboru z Gotową Prędkością
+        // Warstwa ruchu taboru live
         route("/api/trams") {
             get("/live") {
                 val geoJsonTrams = tramLiveService.getTramsAsGeoJson()
