@@ -1,4 +1,9 @@
 This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop (JVM), Server.
+###  Important Notes
+- **Local Network (`SERVER_IP`):** The device or emulator must be connected to the same Wi-Fi network as the server.
+- **No API Keys Included:** For security reasons, live API credentials are strictly excluded from this repository and will never be committed.
+- **Get Your Own Key:** To run the backend with live transit data, you must register for your own API key at the official portal: [api.um.warszawa.pl](https://api.um.warszawa.pl).
+- **Setup:** Once obtained, paste your API key into `WAW_API_KEY` inside your local `local.properties` file.
 
 * [/app/iosApp](./app/iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
   you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
