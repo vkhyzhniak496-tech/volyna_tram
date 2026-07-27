@@ -8,7 +8,11 @@ import io.ktor.server.routing.*
 import io.ktor.server.request.*
 import io.ktor.http.*
 
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+
 import com.example.volyna_tram.repository.NetworkRepository
+import com.example.volyna_tram.service.OverpassService
 import com.example.volyna_tram.service.TramLiveService
 
 fun main() {
@@ -18,6 +22,11 @@ fun main() {
 
 fun Application.module() {
 
+    // 1. Tworzymy klienta HTTP dla zapytań wychodzących (np. do Overpass API)
+    val httpClient = HttpClient(CIO)
+
+    // 2. Inicjalizacja serwisów
+    val overpassService = OverpassService(httpClient)
     val tramLiveService = TramLiveService()
     tramLiveService.startLiveTracking(this)
 
@@ -44,6 +53,17 @@ fun Application.module() {
                     call.respondText(geoJson, ContentType.Application.Json)
                 } else {
                     call.respondText("{\"error\": \"Plik grafu nie znaleziony w RAM\"}", ContentType.Application.Json, HttpStatusCode.NotFound)
+                }
+            }
+
+            // 🚀 Ręczne wymuszenie pobrania świeżej geometrii z Overpass
+            post("/refresh") {
+                val rawOsmData = overpassService.fetchWarsawTramNetwork()
+                if (rawOsmData != null) {
+                    // TUTAJ w przyszłości przepuścimy rawOsmData przez konwerter do GeoJSON
+                    call.respondText("""{"status": "success", "bytes": ${rawOsmData.length}}""", ContentType.Application.Json)
+                } else {
+                    call.respondText("""{"status": "error"}""", ContentType.Application.Json, HttpStatusCode.InternalServerError)
                 }
             }
 
