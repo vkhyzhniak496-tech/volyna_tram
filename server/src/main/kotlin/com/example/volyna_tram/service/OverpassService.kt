@@ -8,20 +8,19 @@ import java.net.URLEncoder
 
 class OverpassService(private val httpClient: HttpClient) {
 
-    // Lista serwerów Overpass (jeśli pierwszy zgłosi 504, próbuje drugiego)
     private val overpassEndpoints = listOf(
+        "https://overpass-api.de/api/interpreter",
         "https://overpass.kumi.systems/api/interpreter",
-        "https://overpass-api.de/api/interpreter"
+        "https://overpass.private.coffee/api/interpreter"
     )
 
     suspend fun fetchWarsawTramNetwork(): String? {
-        // Bounding Box dla obszaru Warszawy: (South, West, North, East)
-        // Zapytanie z BBOX wykonuje się w 1 sekundę i nie przeciąża serwera!
+        // Podajemy BBOX (South, West, North, East) bezpośrednio w nagłówku zapytania
         val rawQuery = """
-            [out:json][timeout:25];
+            [out:json][timeout:25][bbox:52.09,20.85,52.37,21.27];
             (
-              way["railway"="tram"](52.09,20.85,52.37,21.27);
-              node["railway"="tram_stop"](52.09,20.85,52.37,21.27);
+              way["railway"="tram"];
+              node["railway"="tram_stop"];
             );
             out body;
             >;
@@ -33,15 +32,25 @@ class OverpassService(private val httpClient: HttpClient) {
         for (endpoint in overpassEndpoints) {
             try {
                 println("[OVERPASS] 🚀 Próba pobrania z: $endpoint")
+
                 val response: HttpResponse = httpClient.post(endpoint) {
+                    // Overpass wymaga przedstawienia się prawidłowym User-Agent
+                    headers {
+                        append(HttpHeaders.UserAgent, "VolynaTramApp/1.0 (contact: admin@volynatram.com)")
+                        append(HttpHeaders.Accept, "application/json")
+                    }
                     setBody(formBody)
                     contentType(ContentType.Application.FormUrlEncoded)
                 }
 
                 if (response.status == HttpStatusCode.OK) {
                     val osmJson = response.bodyAsText()
-                    println("[OVERPASS] ✅ Sukces! Pobrano ${osmJson.length} znaków z $endpoint")
-                    return osmJson
+                    if (osmJson.contains("elements")) {
+                        println("[OVERPASS] ✅ Sukces! Pobrano ${osmJson.length} znaków z $endpoint")
+                        return osmJson
+                    } else {
+                        println("[OVERPASS] ⚠️ Odpowiedź z $endpoint nie zawiera poprawnych danych OSM JSON.")
+                    }
                 } else {
                     println("[OVERPASS] ⚠️ Błąd $endpoint Status: ${response.status}")
                 }
