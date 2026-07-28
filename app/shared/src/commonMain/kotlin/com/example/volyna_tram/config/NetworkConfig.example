@@ -1,0 +1,5 @@
+package com.example.volyna_tram.config
+
+object NetworkConfig {
+    const val BASE_URL = "http://127.0.0.1:8080"
+}
