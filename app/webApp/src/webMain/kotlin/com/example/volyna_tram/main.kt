@@ -30,7 +30,7 @@ import kotlin.time.Clock
         "        }).join(';');" +
         "        callback(serialized);" +
         "      }" +
-        "    }).catch(e => console.error('Błąd pobierania config.json lub danych:', e));" +
+        "    }).catch(e => console.error('Błąd danych taboru:', e));" +
         "}")
 external fun fetchTaborFromJs(callback: (String) -> Unit)
 
@@ -42,7 +42,6 @@ fun main() {
 }
 
 fun setupWebNetwork() {
-    // Wywołanie JS, który sam wczyta adres z config.json
     fetchTaborFromJs { rawData ->
         if (rawData.isEmpty()) return@fetchTaborFromJs
 

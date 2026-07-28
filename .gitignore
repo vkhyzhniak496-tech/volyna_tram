@@ -3,7 +3,7 @@
 .gradle
 **/build/
 **/config/NetworkConfig.kt
-**/resources/config.json
+**/config.json
 xcuserdata
 !src/**/build/
 local.properties
