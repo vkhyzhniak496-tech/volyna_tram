@@ -3,10 +3,6 @@ package com.example.volyna_tram.utils
 import kotlin.math.*
 
 object GeoMathUtils {
-
-    /**
-     * Wylicza prędkość w km/h na podstawie dwóch pozycji GPS i znacznaczników czasu w ms.
-     */
     fun calculateSpeedKmH(
         lat1: Double, lon1: Double, t1Ms: Long,
         lat2: Double, lon2: Double, t2Ms: Long

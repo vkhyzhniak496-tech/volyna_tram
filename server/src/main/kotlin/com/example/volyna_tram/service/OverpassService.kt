@@ -15,7 +15,6 @@ class OverpassService(private val httpClient: HttpClient) {
     )
 
     suspend fun fetchWarsawTramNetwork(): String? {
-        // Podajemy BBOX (South, West, North, East) bezpośrednio w nagłówku zapytania
         val rawQuery = """
             [out:json][timeout:25][bbox:52.09,20.85,52.37,21.27];
             (
@@ -31,10 +30,9 @@ class OverpassService(private val httpClient: HttpClient) {
 
         for (endpoint in overpassEndpoints) {
             try {
-                println("[OVERPASS] 🚀 Próba pobrania z: $endpoint")
+                println("[OVERPASS]  Próba pobrania z: $endpoint")
 
                 val response: HttpResponse = httpClient.post(endpoint) {
-                    // Overpass wymaga przedstawienia się prawidłowym User-Agent
                     headers {
                         append(HttpHeaders.UserAgent, "VolynaTramApp/1.0 (contact: admin@volynatram.com)")
                         append(HttpHeaders.Accept, "application/json")
@@ -46,20 +44,20 @@ class OverpassService(private val httpClient: HttpClient) {
                 if (response.status == HttpStatusCode.OK) {
                     val osmJson = response.bodyAsText()
                     if (osmJson.contains("elements")) {
-                        println("[OVERPASS] ✅ Sukces! Pobrano ${osmJson.length} znaków z $endpoint")
+                        println("[OVERPASS]  Sukces! Pobrano ${osmJson.length} znaków z $endpoint")
                         return osmJson
                     } else {
-                        println("[OVERPASS] ⚠️ Odpowiedź z $endpoint nie zawiera poprawnych danych OSM JSON.")
+                        println("[OVERPASS] ⚠ Odpowiedź z $endpoint nie zawiera poprawnych danych OSM JSON.")
                     }
                 } else {
-                    println("[OVERPASS] ⚠️ Błąd $endpoint Status: ${response.status}")
+                    println("[OVERPASS] ⚠ Błąd $endpoint Status: ${response.status}")
                 }
             } catch (e: Exception) {
-                println("[OVERPASS] ⚠️ Wyjątek połączenia z $endpoint: ${e.message}")
+                println("[OVERPASS] ⚠ Wyjątek połączenia z $endpoint: ${e.message}")
             }
         }
 
-        println("[OVERPASS] ❌ Wszystkie endpointy Overpass zawiodły.")
+        println("[OVERPASS]  Wszystkie endpointy Overpass zawiodły.")
         return null
     }
 }

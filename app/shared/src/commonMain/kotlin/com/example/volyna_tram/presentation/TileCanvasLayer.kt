@@ -85,7 +85,6 @@ fun TileCanvasLayer(
                         filterQuality = FilterQuality.Medium
                     )
                 } else {
-                    // Podgląd siatki tła przed wczytaniem obrazka
                     drawRect(
                         color = Color(0xFF1E293B),
                         topLeft = Offset(drawX, drawY),
