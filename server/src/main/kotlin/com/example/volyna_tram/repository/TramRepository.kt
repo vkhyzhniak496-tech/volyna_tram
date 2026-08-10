@@ -9,16 +9,12 @@ class TramRepository {
     private val activeTrams = ConcurrentHashMap<String, LiveTram>()
 
     init {
-        // Dane początkowe do testów
         upsertTram(LiveTram("17", "03", 52.219, 21.001, speed = 25.0))
         upsertTram(LiveTram("9", "12", 52.231, 21.005, speed = 0.0))
         upsertTram(LiveTram("19", "01", 52.225, 21.003, speed = 42.0))
     }
 
-    /**
-     * Wstawia lub aktualizuje wóz na podstawie klucza (Linia + Brygada).
-     * Wylicza prędkość na podstawie poprzedniej pozycji i czasu.
-     */
+
     fun upsertTram(newTram: LiveTram) {
         val key = "${newTram.line}_${newTram.brigade}"
         val previousTram = activeTrams[key]
@@ -35,8 +31,6 @@ class TramRepository {
         activeTrams[key] = newTram.copy(speed = speed)
     }
 
-    /**
-     * Zwraca listę wszystkich aktualnych tramwajów w RAM.
-     */
+
     fun getAll(): List<LiveTram> = activeTrams.values.toList()
 }

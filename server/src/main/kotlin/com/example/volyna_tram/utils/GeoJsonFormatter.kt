@@ -34,16 +34,12 @@ object GeoJsonFormatter {
         }
     }
 
-    /**
-     Konwersja surowego OSM JSON (z Overpass API)
-     * bezpośrednio do GeoJSON FeatureCollection zgodnego z Twoim klientem!
-     */
+
     fun formatOsmToGeoJson(rawOsmJson: String): String {
         val json = Json { ignoreUnknownKeys = true }
         val root = json.parseToJsonElement(rawOsmJson).jsonObject
         val elements = root["elements"]?.jsonArray ?: return """{"type":"FeatureCollection","features":[]}"""
 
-        // 1. Mapa pomocnicza dla węzłów (Nodes): id -> Pair(longitude, latitude)
         val nodeMap = mutableMapOf<Long, Pair<Double, Double>>()
         elements.forEach { el ->
             val obj = el.jsonObject
@@ -57,14 +53,12 @@ object GeoJsonFormatter {
             }
         }
 
-        // 2. Budowanie obiektów Feature
         val features = mutableListOf<JsonObject>()
 
         elements.forEach { el ->
             val obj = el.jsonObject
             val type = obj["type"]?.jsonPrimitive?.content
 
-            // A) Tory tramwajowe (Way -> LineString)
             if (type == "way") {
                 val nodes = obj["nodes"]?.jsonArray?.mapNotNull { it.jsonPrimitive.longOrNull } ?: emptyList()
                 val coordinates = nodes.mapNotNull { nodeMap[it] }
@@ -79,7 +73,6 @@ object GeoJsonFormatter {
                         put("coordinates", coordArray)
                     }
 
-                    // Przekazujemy tagi OSM (name, maxspeed, @id) prosto do properties
                     val tags = obj["tags"]?.jsonObject ?: buildJsonObject {}
                     val properties = buildJsonObject {
                         tags.forEach { (key, value) -> put(key, value) }
@@ -95,7 +88,6 @@ object GeoJsonFormatter {
                     features.add(feature)
                 }
             }
-            // B) Przystanki tramwajowe (Node -> Point)
             else if (type == "node") {
                 val tags = obj["tags"]?.jsonObject
                 if (tags != null && tags.containsKey("railway")) {

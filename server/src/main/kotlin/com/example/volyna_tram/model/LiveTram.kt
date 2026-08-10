@@ -8,6 +8,6 @@ data class LiveTram(
     val brigade: String,
     val lat: Double,
     val lon: Double,
-    val speed: Double = 0.0, // Prędkość chwilowa przeliczona na serwerze (km/h)
+    val speed: Double = 0.0,
     val timestamp: Long = System.currentTimeMillis()
 )

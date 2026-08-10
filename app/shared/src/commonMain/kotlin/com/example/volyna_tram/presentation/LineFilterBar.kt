@@ -25,7 +25,6 @@ fun LineFilterBar(
 ) {
     if (availableLines.isEmpty()) return
 
-    // CIEMNOGRANATOWA, WYSOKOKONTRASTOWA KARTA (Świetnie odcina się od jasnej mapy!)
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -38,7 +37,6 @@ fun LineFilterBar(
         Column(
             modifier = Modifier.padding(vertical = 10.dp)
         ) {
-            // Nagłówek z wyraźnym podsumowaniem
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -81,7 +79,6 @@ fun LineFilterBar(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // 🚀 POPRAWKA SKROLLOWANIA: contentPadding dodaje bezpieczny margines na końcu dla linii 79!
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = 14.dp), // Zabezpieczenie przed ucinaniem ostatnich linii
@@ -108,7 +105,6 @@ fun LineFilterBar(
                     )
                 }
 
-                // Kafelki linii z ostrym żółtym podświetleniem
                 items(availableLines, key = { it }) { line ->
                     val isSelected = line in selectedLines
                     FilterChip(
@@ -122,9 +118,9 @@ fun LineFilterBar(
                             )
                         },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFFFFB300), // Żółty akcent
+                            selectedContainerColor = Color(0xFFFFB300),
                             selectedLabelColor = Color(0xFF0F172A),
-                            containerColor = Color(0xFF1E293B), // Nieaktywny czarny/ciemnoszary
+                            containerColor = Color(0xFF1E293B),
                             labelColor = Color(0xFFF1F5F9)
                         ),
                         border = FilterChipDefaults.filterChipBorder(
