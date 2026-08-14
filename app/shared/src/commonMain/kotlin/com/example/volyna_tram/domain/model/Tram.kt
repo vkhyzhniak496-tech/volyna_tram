@@ -8,11 +8,12 @@ import kotlin.time.Clock
  * Czysty, docelowy model domenowy tramwaju używany przez Frontend i Canvas.
  */
 data class Tram(
-    val id: String,          // Unikalny klucz: "Linia_Brygada" (np. "17_4")
-    val line: String,        // np. "17"
-    val brigade: String,     // np. "4"
+    val id: String,          // "17_4"
+    val line: String,
+    val brigade: String,
     val lat: Double,
     val lon: Double,
     val speed: Double = 0.0,
-    val timestamp: Long = Clock.System.now().toEpochMilliseconds()
+    val timestamp: Long = Clock.System.now().toEpochMilliseconds(),
+    val bearing: Float = 0f  // <-- Kąt w stopniach (0..360°)
 )

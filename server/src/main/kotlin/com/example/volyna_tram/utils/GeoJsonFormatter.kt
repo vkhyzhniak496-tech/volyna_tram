@@ -6,7 +6,8 @@ import kotlinx.serialization.json.*
 object GeoJsonFormatter {
 
     /**
-     * Zbudowany wcześniej format dla dynamicznych pozycji tramwajów (Live)
+     * Zbudowany format dla dynamicznych pozycji tramwajów (Live)
+     * Przesyła do klienta prędkość oraz wyliczony kąt obrotu (bearing).
      */
     fun formatTramsToGeoJson(trams: List<LiveTram>): String {
         return buildString {
@@ -23,6 +24,7 @@ object GeoJsonFormatter {
                 append("""    "line":"${tram.line}",""")
                 append("""    "brigade":"${tram.brigade}",""")
                 append("""    "speed":${tram.speed},""")
+                append("""    "bearing":${tram.bearing},""") // <-- Dodany kąt obrotu!
                 append("""    "timestamp":${tram.timestamp}""")
                 append("""  }""")
                 append("""}""")
@@ -35,7 +37,7 @@ object GeoJsonFormatter {
     }
 
     /**
-     Konwersja surowego OSM JSON (z Overpass API)
+     * Konwersja surowego OSM JSON (z Overpass API)
      * bezpośrednio do GeoJSON FeatureCollection zgodnego z Twoim klientem!
      */
     fun formatOsmToGeoJson(rawOsmJson: String): String {

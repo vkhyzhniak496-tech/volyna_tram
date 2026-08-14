@@ -62,6 +62,7 @@ fun setupWebNetwork() {
 
                 val id = "${line}_${brigade}"
 
+
                 nowaLista.add(
                     Tram(
                         id = id,
@@ -70,7 +71,8 @@ fun setupWebNetwork() {
                         lat = lat,
                         lon = lon,
                         speed = speed,
-                        timestamp = timestamp
+                        timestamp = timestamp,
+
                     )
                 )
             }

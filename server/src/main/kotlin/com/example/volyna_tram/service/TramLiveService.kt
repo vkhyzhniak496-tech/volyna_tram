@@ -1,6 +1,7 @@
 package com.example.volyna_tram.service
 
 import com.example.volyna_tram.client.WawApiClient
+import com.example.volyna_tram.model.LiveTram
 import com.example.volyna_tram.repository.TramRepository
 import com.example.volyna_tram.utils.GeoJsonFormatter
 import kotlinx.coroutines.*
@@ -13,6 +14,12 @@ class TramLiveService(
     fun getTramsAsGeoJson(): String {
         return GeoJsonFormatter.formatTramsToGeoJson(repository.getAll())
     }
+
+    fun getTramById(id: String): LiveTram? = repository.getById(id)
+
+    fun getTramsByLine(line: String): List<LiveTram> = repository.getByLine(line)
+
+    fun getAllTrams(): List<LiveTram> = repository.getAll()
 
     fun startLiveTracking(scope: CoroutineScope) {
         scope.launch(Dispatchers.IO) {
