@@ -22,30 +22,43 @@ object GeoMathUtils {
     }
 
     /**
-     * Oblicza prędkość w km/h z filtrem strefy martwej GPS (Deadband).
+     * Oblicza prędkość z filtrem szumów GPS i wygładzaniem (EMA).
      */
     fun calculateSpeedKmH(
         lat1: Double, lon1: Double, t1Ms: Long,
-        lat2: Double, lon2: Double, t2Ms: Long
+        lat2: Double, lon2: Double, t2Ms: Long,
+        previousSpeed: Double = 0.0
     ): Double {
         val timeDiffSeconds = (t2Ms - t1Ms) / 1000.0
-        if (timeDiffSeconds <= 0.0 || timeDiffSeconds > 60.0) return 0.0
+        // Ignorujemy niepoprawne lub zbyt odległe próbki czasowe (>90s)
+        if (timeDiffSeconds < 2.0 || timeDiffSeconds > 90.0) return previousSpeed
 
         val distanceMeters = calculateDistanceMeters(lat1, lon1, lat2, lon2)
 
-        // 🛑 JEŚLI RUCH WYNOSI MNIEJ NIŻ 8 METRÓW W 10S -> TO JEST SZUM GPS W SPOCZYNKU
-        if (distanceMeters < 8.0) {
+        // 🛑 Próg postoju: przemieszczenie < 14m w ~10-15s to w warunkach miejskich postój (dryf GPS)
+        if (distanceMeters < 14.0) {
             return 0.0
         }
 
-        val speedKmH = (distanceMeters / timeDiffSeconds) * 3.6
+        val rawSpeedKmH = (distanceMeters / timeDiffSeconds) * 3.6
 
-        // 🛑 ODCINAMY PRĘDKOŚCI PONIŻEJ 3.5 km/h
-        return if (speedKmH < 5) 0.0 else speedKmH
+        // 🛑 Filtr anomalii: Tramwaj w Warszawie nie przekracza 70 km/h (odrzucamy teleportacje GPS)
+        if (rawSpeedKmH > 75.0) {
+            return previousSpeed.coerceAtMost(60.0)
+        }
+
+        // 🌊 Wygładzanie wykładnicze (EMA): 60% nowy odczyt + 40% poprzednia prędkość
+        val smoothedSpeed = if (previousSpeed > 0.0) {
+            (0.6 * rawSpeedKmH) + (0.4 * previousSpeed)
+        } else {
+            rawSpeedKmH
+        }
+
+        return if (smoothedSpeed < 4.0) 0.0 else smoothedSpeed
     }
 
     /**
-     * Oblicza kąt kierunku (Azymut 0-360°).
+     * Oblicza azymut geograficzny (0-360°).
      */
     fun calculateBearing(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Float {
         val lat1Rad = Math.toRadians(lat1)
@@ -56,7 +69,14 @@ object GeoMathUtils {
         val x = cos(lat1Rad) * sin(lat2Rad) - sin(lat1Rad) * cos(lat2Rad) * cos(dLonRad)
 
         var bearing = Math.toDegrees(atan2(y, x)).toFloat()
-        bearing = (bearing + 360f) % 360f
-        return bearing
+        return (bearing + 360f) % 360f
+    }
+
+    /**
+     * Wygładza kąt po okręgu (zapobiega skokom na granicy 0° / 360°).
+     */
+    fun smoothAngle(oldAngle: Float, newAngle: Float, weight: Float = 0.5f): Float {
+        val diff = ((newAngle - oldAngle + 180f) % 360f) - 180f
+        return (oldAngle + diff * weight + 360f) % 360f
     }
 }

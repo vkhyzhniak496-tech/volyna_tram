@@ -135,7 +135,7 @@ private fun DrawScope.drawTramVehicle(
     }
 
     // 🧭 1. DZIÓBEK KIERUNKOWY (Obrót wokół środka wozu o kąt bearing)
-    if (tram.bearing > 0f && scale > 0.004f) {
+    if (tram.speed >= 5.0 && tram.bearing > 0f && scale > 0.004f) {
         withTransform({
             rotate(degrees = tram.bearing, pivot = center)
         }) {
@@ -143,7 +143,7 @@ private fun DrawScope.drawTramVehicle(
                 val tipY = center.y - (baseRadius * 1.6f)
                 val baseLeft = center.x - (baseRadius * 0.6f)
                 val baseRight = center.x + (baseRadius * 0.6f)
-                val baseY = center.y - (baseRadius * 0.9f)
+                val baseY = center.y - (baseRadius * 0.85f)
 
                 moveTo(center.x, tipY)
                 lineTo(baseRight, baseY)
