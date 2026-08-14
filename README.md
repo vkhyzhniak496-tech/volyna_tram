@@ -1,59 +1,65 @@
-This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop (JVM), Server.
-###  Important Notes
-- **Local Network (`SERVER_IP`):** The device or emulator must be connected to the same Wi-Fi network as the server.
-- **No API Keys Included:** For security reasons, live API credentials are strictly excluded from this repository and will never be committed.
-- **Get Your Own Key:** To run the backend with live transit data, you must register for your own API key at the official portal: [api.um.warszawa.pl](https://api.um.warszawa.pl).
-- **Setup:** Once obtained, paste your API key into `WAW_API_KEY` inside your local `local.properties` file.
+# Warsaw Live Transit KMP
 
-* [/app/iosApp](./app/iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
-
-* [/app/shared](./app/shared/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./app/shared/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./app/shared/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./app/shared/src/jvmMain/kotlin)
-    folder is the appropriate location.
-
-* [/core](./core/src) is for the code that will be shared between all targets in the project.
-  The most important subfolder is [commonMain](./core/src/commonMain/kotlin). If preferred, you
-  can add code to the platform-specific folders here too.
-
-* [/server](./server/src/main/kotlin) is for the Ktor server application.
-
-### Running the apps
-
-Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:
-
-- Android app: `./gradlew :app:androidApp:assembleDebug`
-- Desktop app:
-  - Hot reload: `./gradlew :app:desktopApp:hotRun --auto`
-  - Standard run: `./gradlew :app:desktopApp:run`
-- Server: `./gradlew :server:run`
-- Web app:
-  - Wasm target (faster, modern browsers): `./gradlew :app:webApp:wasmJsBrowserDevelopmentRun`
-  - JS target (slower, supports older browsers): `./gradlew :app:webApp:jsBrowserDevelopmentRun`
-- iOS app: open the [/app/iosApp](./app/iosApp) directory in Xcode and run it from there.
-
-### Running tests
-
-Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
-
-- Android tests: `./gradlew :app:shared:testAndroidHostTest`
-- Desktop tests: `./gradlew :app:shared:jvmTest`
-- Server tests: `./gradlew :server:test`
-- Web tests:
-  - Wasm target: `./gradlew :app:shared:wasmJsTest`
-  - JS target: `./gradlew :app:shared:jsTest`
-- iOS tests: `./gradlew :app:shared:iosSimulatorArm64Test`
+A full-stack, cross-platform spatial application built with **Kotlin Multiplatform** and **Compose Multiplatform**. The system tracks and visualizes Warsaw's public transport fleet (trams and buses) in real-time, leveraging official GTFS/API streams from the City of Warsaw (`api.um.warszawa.pl`).
 
 ---
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html),
-[Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform/#compose-multiplatform),
-[Kotlin/Wasm](https://kotl.in/wasm/)…
+## System Architecture & Features
 
-We would appreciate your feedback on Compose/Web and Kotlin/Wasm in the public Slack channel [#compose-web](https://slack-chats.kotlinlang.org/c/compose-web).
-If you face any issues, please report them on [YouTrack](https://youtrack.jetbrains.com/newIssue?project=CMP).
+This project showcases a modern **Full-Stack Kotlin** approach, running the same core business logic across **Android, iOS, Desktop, Web (Wasm/JS), and Server**:
+
+* **Backend (Ktor Server):** Fetches live telemetry data from Warsaw Open Data endpoints, handles caching/rate-limiting, and streams processed spatial entities to client applications.
+* **Shared Core (`:core` & `:app:shared`):** Contains common domain models, spatial calculations, state management, and API DTOs shared seamlessly across all targets.
+* **Multiplatform UI (Compose Multiplatform & SwiftUI):** Declarative cross-platform UI rendering real-time vehicle positions on interactive maps.
+* **Security & Environment Config:** Strict isolation of sensitive credentials (API keys, backend IPs) via local environment properties.
+
+---
+
+##  Tech Stack
+
+* **Language:** Kotlin 2.x
+* **UI Framework:** Compose Multiplatform (Android, Desktop, Web, iOS entry) + SwiftUI integration
+* **Server:** Ktor Framework
+* **Asynchronous & Reactive Data:** Kotlin Coroutines & Flows
+* **Build System:** Gradle (Multi-module setup)
+* **Targets:** Android, iOS, Desktop (JVM), Web (WasmJs / JS), Ktor Backend
+
+---
+
+##  Environment Setup & Security
+
+Before running the project, you need to configure your local credentials and backend connection.
+
+### 1. Warsaw Open API Key
+Live transit data requires an access token from the official portal:
+1. Register at [api.um.warszawa.pl](https://api.um.warszawa.pl).
+2. Obtain your personal API Key.
+3. Add the following line to your `local.properties` file in the project root:
+   ```properties
+   WAW_API_KEY=your_actual_api_key_here
+
+### 2. Server IP Configuration
+
+For mobile devices or emulators to communicate with the local Ktor server:
+1. Ensure both the backend and client target are connected to the same local Wi-Fi network.
+2. Update SERVER_IP in your local properties if testing on physical hardware.
+   🚀 Running the Applications
+   Backend Server
+
+Run the Ktor backend first to start ingestion and proxying of live transport data:
+Bash
+
+./gradlew :server:run
+
+Client Applications
+
+    Android App:
+    ./gradlew :app:androidApp:assembleDebug
+
+    Web App:
+        Wasm Target (Modern Browsers):
+        ./gradlew :app:webApp:wasmJsBrowserDevelopmentRun
+        JS Target (Legacy Browsers):
+        ./gradlew :app:webApp:jsBrowserDevelopmentRun
+
+Built as a personal project demonstrating Kotlin Multiplatform capability in real-time geospatial data tracking.

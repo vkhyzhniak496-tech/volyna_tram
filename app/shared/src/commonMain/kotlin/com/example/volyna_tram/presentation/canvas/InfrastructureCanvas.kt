@@ -100,3 +100,4 @@ private fun DrawScope.drawStops(
         drawCircle(color = Color.White, radius = 5f / scale, center = stopOffset, style = Stroke(width = 1.2f / scale))
     }
 }
+

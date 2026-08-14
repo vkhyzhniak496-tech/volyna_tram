@@ -15,6 +15,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.volyna_tram.domain.model.Tram
 import com.example.volyna_tram.domain.model.TramElement
+import com.example.volyna_tram.presentation.tile.TileCanvasLayer
+import io.ktor.client.HttpClient
 
 @Composable
 fun TramMap(
@@ -24,7 +26,8 @@ fun TramMap(
     showPlatforms: Boolean,
     isFirstLoad: Boolean,
     onTogglePlatforms: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    httpClient: HttpClient = remember { HttpClient() }
 ) {
     val boundingBox = remember(baseElements) { calculateBoundingBox(baseElements) } ?: return
 
@@ -60,7 +63,7 @@ fun TramMap(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF8F9FA))
+                .background(Color(0xFF0F172A))
                 .pointerInput(Unit) {
                     detectTransformGestures { centroid, pan, zoom, _ ->
                         val oldScale = scale
@@ -94,6 +97,12 @@ fun TramMap(
                     }
                 }
         ) {
+            TileCanvasLayer(
+                scale = scale,
+                offset = offset,
+                project = projection::project,
+                client = httpClient // Przekaż HttpClient
+            )
             // WARSTWA 1: INFRASTRUKTURA
             InfrastructureCanvas(
                 baseElements = baseElements,
