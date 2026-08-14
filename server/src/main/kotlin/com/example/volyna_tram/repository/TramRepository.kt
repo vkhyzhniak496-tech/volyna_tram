@@ -28,17 +28,16 @@ class TramRepository {
                 lat2 = newTram.lat, lon2 = newTram.lon, t2Ms = newTram.timestamp
             )
 
-            // Wyliczamy nowy bearing tylko jeśli pojazd zmienił pozycję i jedzie (> 1 km/h)
-            val isMoved = previousTram.lat != newTram.lat || previousTram.lon != newTram.lon
-            bearing = if (isMoved && speed > 1.0) {
+            // Wyliczamy nowy bearing tylko jeśli pojazd RZECZYWIŚCIE jedzie (nie jest to szum w spoczynku)
+            bearing = if (speed >= 3.5) {
                 GeoMathUtils.calculateBearing(
-                    lat1 = previousTram.lat,
-                    lon1 = previousTram.lon,
-                    lat2 = newTram.lat,
-                    lon2 = newTram.lon
+                    previousTram.lat,
+                    previousTram.lon,
+                    newTram.lat,
+                    newTram.lon
                 )
             } else {
-                previousTram.bearing // zachowaj ostatni kierunek
+                previousTram.bearing // zachowaj stabilny kierunek podczas postoju
             }
         } else {
             speed = newTram.speed

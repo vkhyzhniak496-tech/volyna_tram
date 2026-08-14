@@ -251,12 +251,27 @@ fun TramMap(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Prędkość: ${tram.speed.roundToInt()} km/h",
-                                color = Color(0xFF94A3B8),
-                                fontSize = 12.sp
-                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                val isMoving = tram.speed >= 3.5
+                                val statusColor = if (isMoving) Color(0xFF10B981) else Color(0xFFF59E0B)
+                                val statusText = if (isMoving) "${tram.speed.roundToInt()} km/h" else "Postój / Przystanek"
+
+                                Surface(
+                                    shape = CircleShape,
+                                    color = statusColor,
+                                    modifier = Modifier.size(7.dp)
+                                ) {}
+
+                                Spacer(modifier = Modifier.width(6.dp))
+
+                                Text(
+                                    text = statusText,
+                                    color = Color(0xFFE2E8F0),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.width(14.dp))

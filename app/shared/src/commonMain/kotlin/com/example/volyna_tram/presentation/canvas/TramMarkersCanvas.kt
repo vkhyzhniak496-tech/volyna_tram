@@ -11,6 +11,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
@@ -37,11 +38,7 @@ fun TramMarkersCanvas(
 ) {
     val animatedTrams = liveTrams.map { tram ->
         key(tram.id) {
-            rememberAnimatedTramPosition(
-                tram = tram,
-                isFirstLoad = isFirstLoad,
-                project = project
-            )
+            rememberAnimatedTramPosition(tram = tram, isFirstLoad = isFirstLoad, project = project)
         }
     }
 
@@ -68,9 +65,6 @@ fun TramMarkersCanvas(
     }
 }
 
-/**
- * Płynna animacja z zabezpieczeniem przed przelotami po wybudzeniu karty.
- */
 @Composable
 private fun rememberAnimatedTramPosition(
     tram: Tram,
@@ -86,16 +80,10 @@ private fun rememberAnimatedTramPosition(
     LaunchedEffect(targetLat, targetLon) {
         val currentTime = Clock.System.now().toEpochMilliseconds()
         val timeDiffSec = (currentTime - tram.timestamp) / 1000L
-
-        // Odległość w stopniach (~0.003 stopnia to ok. 300 metrów w Warszawie)
         val dLat = abs(animLat.value - targetLat)
         val dLon = abs(animLon.value - targetLon)
         val maxRealisticJump = 0.0035f
 
-        // Warunki natychmiastowego przeskoku (SNAP):
-        // 1. Pierwsze załadowanie
-        // 2. Opóźnienie pakietu > 14 sekund
-        // 3. Pozycja zmieniła się o więcej niż 300m (powrót na kartę po uśpieniu)
         val shouldSnap = isFirstLoad || timeDiffSec > 14 || dLat > maxRealisticJump || dLon > maxRealisticJump
 
         if (shouldSnap) {
@@ -146,6 +134,31 @@ private fun DrawScope.drawTramVehicle(
         Color(0xFFFFB300) // Domyślny żółty
     }
 
+    // 🧭 1. DZIÓBEK KIERUNKOWY (Obrót wokół środka wozu o kąt bearing)
+    if (tram.bearing > 0f && scale > 0.004f) {
+        withTransform({
+            rotate(degrees = tram.bearing, pivot = center)
+        }) {
+            val arrowPath = Path().apply {
+                val tipY = center.y - (baseRadius * 1.6f)
+                val baseLeft = center.x - (baseRadius * 0.6f)
+                val baseRight = center.x + (baseRadius * 0.6f)
+                val baseY = center.y - (baseRadius * 0.9f)
+
+                moveTo(center.x, tipY)
+                lineTo(baseRight, baseY)
+                lineTo(baseLeft, baseY)
+                close()
+            }
+
+            drawPath(
+                path = arrowPath,
+                color = if (isSelected) Color(0xFFFFD700) else Color(0xFF0F172A)
+            )
+        }
+    }
+
+    // 🌟 2. Złoty pierścień zaznaczenia
     if (isSelected) {
         drawCircle(
             color = Color(0xFFFFD700),
@@ -155,12 +168,14 @@ private fun DrawScope.drawTramVehicle(
         )
     }
 
+    // 🟡 3. Wypełnienie kółka tramwaju
     drawCircle(
         color = tramColor,
         radius = baseRadius,
         center = center
     )
 
+    // ⚪ 4. Obrys kontrastowy
     drawCircle(
         color = Color(0xFF0F172A),
         radius = baseRadius,
@@ -168,6 +183,7 @@ private fun DrawScope.drawTramVehicle(
         style = Stroke(width = ringStroke)
     )
 
+    // 🔢 5. Etykieta linii
     if (scale > 0.008f) {
         val fontSize = 11.sp
         val label = if (showSpeedLayer) "${tram.line} (${tram.speed.roundToInt()} km/h)" else tram.line
