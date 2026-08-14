@@ -59,4 +59,9 @@ class TramRepository {
     /** Zwraca tramwaje danej linii (np. "9") */
     fun getByLine(line: String): List<LiveTram> =
         activeTrams.values.filter { it.line == line.trim() }
+
+    fun removeStaleTrams(ttlMs: Long = 90000) {
+        val expirationThreshold = System.currentTimeMillis() - ttlMs
+        activeTrams.values.removeIf { it.timestamp < expirationThreshold }
+    }
 }

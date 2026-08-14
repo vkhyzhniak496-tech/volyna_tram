@@ -30,8 +30,11 @@ class TramLiveService(
                     val fetchedTrams = apiClient.fetchLiveTrams()
                     fetchedTrams.forEach { repository.upsertTram(it) }
 
+                    // Usuwamy nieaktywne wozy (zjazdy do zajezdni / brak sygnału > 90s)
+                    repository.removeStaleTrams(ttlMs = 90_000)
+
                     if (fetchedTrams.isNotEmpty()) {
-                        println("[SILNIK] Zaktualizowano w RAM: ${fetchedTrams.size} pojazdów.")
+                        println("[SILNIK] Zaktualizowano w RAM: ${fetchedTrams.size} pojazdów (Aktywne: ${repository.getAll().size}).")
                     }
                 } catch (e: CancellationException) {
                     throw e
