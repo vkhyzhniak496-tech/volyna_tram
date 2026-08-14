@@ -16,3 +16,4 @@ data class Tram(
     val speed: Double = 0.0,
     val timestamp: Long = Clock.System.now().toEpochMilliseconds()
 )
+//Demo

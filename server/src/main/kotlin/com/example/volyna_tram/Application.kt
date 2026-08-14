@@ -47,7 +47,7 @@ fun Application.module() {
             }
         }
         // Pusty ciąg "" oznacza bezpośrednio główny katalog resources
-        staticResources("/", "", index = "index.html")
+            staticResources("/", "", index = "index.html")
 
         // Warstwa geometrii (serwowana błyskawicznie z RAM)
         route("/api/network") {
