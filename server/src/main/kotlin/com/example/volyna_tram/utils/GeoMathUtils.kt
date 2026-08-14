@@ -24,7 +24,6 @@ object GeoMathUtils {
         val speedMs = distanceMeters / timeDiffSeconds
         val speedKmH = speedMs * 3.6
 
-        // Odrzucamy nierealne skoki GPS (teleportacja > 90 km/h)
         return if (speedKmH in 0.0..90.0) {
             (speedKmH * 10.0).roundToInt() / 10.0
         } else {
