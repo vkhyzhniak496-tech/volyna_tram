@@ -1,4 +1,4 @@
-package com.example.volyna_tram.presentation
+package com.example.volyna_tram.presentation.canvas
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize

@@ -1,4 +1,4 @@
-package com.example.volyna_tram.presentation
+package com.example.volyna_tram.presentation.canvas
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures

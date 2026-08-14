@@ -15,7 +15,7 @@ import com.example.volyna_tram.data.tram.TramRepository
 import com.example.volyna_tram.data.network.parseNetworkGeoJson
 import com.example.volyna_tram.data.tram.parseTramGeoJson
 import com.example.volyna_tram.domain.model.TramElement
-import com.example.volyna_tram.presentation.TramMap
+import com.example.volyna_tram.presentation.canvas.TramMap
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText

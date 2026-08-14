@@ -7,17 +7,16 @@ import java.util.Properties
 
 object AppConfig {
     private val properties = Properties().apply {
-        // Szukamy w głównym katalogu projektu, a jeśli nie ma - w katalogu wyżej
-        val localFile = sequenceOf(
+    val localFile = sequenceOf(
             File("local.properties"),
             File("../local.properties")
         ).firstOrNull { it.exists() }
 
         if (localFile != null) {
             localFile.inputStream().use { load(it) }
-            println("[APP_CONFIG] ✅ Wczytano konfig z: ${localFile.absolutePath}")
+            println("[APP_CONFIG]Wczytano konfig z: ${localFile.absolutePath}")
         } else {
-            println("[APP_CONFIG] ⚠️ Nie znaleziono pliku local.properties!")
+            println("[APP_CONFIG] Nie znaleziono pliku local.properties!")
         }
     }
 

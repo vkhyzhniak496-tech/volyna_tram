@@ -24,18 +24,13 @@ fun main() {
 
 fun Application.module() {
 
-    // 1. Tworzymy klienta HTTP dla zapytań wychodzących (np. do Overpass API)
     val httpClient = HttpClient(CIO)
-
-    // 2. Inicjalizacja serwisów
     val overpassService = OverpassService(httpClient)
     val tramLiveService = TramLiveService()
     tramLiveService.startLiveTracking(this)
-
     val networkRepository = NetworkRepository
 
     routing {
-        // Mostek CORS (zabezpiecza komunikację z frontendem)
         intercept(ApplicationCallPipeline.Plugins) {
             val call = this.call
             call.response.headers.append(HttpHeaders.AccessControlAllowOrigin, "*", safeOnly = false)
@@ -46,10 +41,8 @@ fun Application.module() {
                 return@intercept
             }
         }
-        // Pusty ciąg "" oznacza bezpośrednio główny katalog resources
         staticResources("/", "", index = "index.html")
 
-        // Warstwa geometrii (serwowana błyskawicznie z RAM)
         route("/api/network") {
             get("/map") {
                 val geoJson = networkRepository.getBaseMapGeoJson()
@@ -60,18 +53,15 @@ fun Application.module() {
                 }
             }
 
-            //  Ręczne wymuszenie pobrania świeżej geometrii z Overpass
             post("/refresh") {
                 println("[NETWORK]  Pobieranie sieci z Overpass API...")
                 val rawOsmData = overpassService.fetchWarsawTramNetwork()
 
                 if (rawOsmData != null) {
-                    println("[NETWORK] ⚙️ Konwertowanie OSM do GeoJSON za pomocą GeoJsonFormatter...")
+                    println("[NETWORK] Konwertowanie OSM do GeoJSON za pomocą GeoJsonFormatter...")
 
-                    // 1. Przepuszczamy dane przez nasz edytowany GeoJsonFormatter
                     val formattedGeoJson = GeoJsonFormatter.formatOsmToGeoJson(rawOsmData)
 
-                    // 2. Podmieniamy dane w pamięci RAM serwera i aktualizujemy wersję!
                     networkRepository.updateNetwork(formattedGeoJson)
 
                     call.respondText(

@@ -1,4 +1,4 @@
-package com.example.volyna_tram.presentation
+package com.example.volyna_tram.presentation.canvas
 
 import androidx.compose.ui.geometry.Offset
 import com.example.volyna_tram.domain.model.TramElement

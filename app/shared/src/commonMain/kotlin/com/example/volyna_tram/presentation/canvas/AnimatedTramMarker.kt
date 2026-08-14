@@ -1,4 +1,4 @@
-package com.example.volyna_tram.presentation
+package com.example.volyna_tram.presentation.canvas
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState

@@ -62,9 +62,9 @@ object NetworkRepository {
             // Zapisujemy na dysk, żeby po restarcie serwera wczytała się nowa sieć!
             try {
                 File(CACHE_FILE_NAME).writeText(newMapJson)
-                println("[NETWORK_REPO] 💾 Zapisano nową sieć z Overpassa do pliku $CACHE_FILE_NAME.")
+                println("[NETWORK_REPO]  Zapisano nową sieć z Overpassa do pliku $CACHE_FILE_NAME.")
             } catch (e: Exception) {
-                println("[NETWORK_REPO] ⚠️ Błąd zapisu pliku cache: ${e.message}")
+                println("[NETWORK_REPO] ⚠ Błąd zapisu pliku cache: ${e.message}")
             }
         }
 
@@ -73,6 +73,6 @@ object NetworkRepository {
         }
 
         networkVersion = System.currentTimeMillis()
-        println("[NETWORK_REPO] 🔄 Zaktualizowano wersję sieci w RAM: $networkVersion")
+        println("[NETWORK_REPO]  Zaktualizowano wersję sieci w RAM: $networkVersion")
     }
 }

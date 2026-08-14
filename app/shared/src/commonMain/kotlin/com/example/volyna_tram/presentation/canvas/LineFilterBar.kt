@@ -1,4 +1,4 @@
-package com.example.volyna_tram.presentation
+package com.example.volyna_tram.presentation.canvas
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
@@ -25,8 +25,7 @@ fun LineFilterBar(
 ) {
     if (availableLines.isEmpty()) return
 
-    // CIEMNOGRANATOWA, WYSOKOKONTRASTOWA KARTA (Świetnie odcina się od jasnej mapy!)
-    Surface(
+        Surface(
         modifier = modifier
             .fillMaxWidth()
             .padding(top = 12.dp, start = 12.dp, end = 12.dp),
@@ -38,7 +37,6 @@ fun LineFilterBar(
         Column(
             modifier = Modifier.padding(vertical = 10.dp)
         ) {
-            // Nagłówek z wyraźnym podsumowaniem
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -81,7 +79,6 @@ fun LineFilterBar(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // 🚀 POPRAWKA SKROLLOWANIA: contentPadding dodaje bezpieczny margines na końcu dla linii 79!
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = 14.dp), // Zabezpieczenie przed ucinaniem ostatnich linii
