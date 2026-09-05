@@ -46,8 +46,6 @@ fun Application.module() {
                 return@intercept
             }
         }
-        // Pusty ciąg "" oznacza bezpośrednio główny katalog resources
-        staticResources("/", "", index = "index.html")
 
         // Warstwa geometrii (serwowana błyskawicznie z RAM)
         route("/api/network") {
@@ -66,7 +64,7 @@ fun Application.module() {
                 val rawOsmData = overpassService.fetchWarsawTramNetwork()
 
                 if (rawOsmData != null) {
-                    println("[NETWORK] ⚙️ Konwertowanie OSM do GeoJSON za pomocą GeoJsonFormatter...")
+                    println("[NETWORK] ⚙ Konwertowanie OSM do GeoJSON za pomocą GeoJsonFormatter...")
 
                     // 1. Przepuszczamy dane przez nasz edytowany GeoJsonFormatter
                     val formattedGeoJson = GeoJsonFormatter.formatOsmToGeoJson(rawOsmData)
