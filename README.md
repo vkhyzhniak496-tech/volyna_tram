@@ -1,59 +1,62 @@
-This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop (JVM), Server.
-###  Important Notes
-- **Local Network (`SERVER_IP`):** The device or emulator must be connected to the same Wi-Fi network as the server.
-- **No API Keys Included:** For security reasons, live API credentials are strictly excluded from this repository and will never be committed.
-- **Get Your Own Key:** To run the backend with live transit data, you must register for your own API key at the official portal: [api.um.warszawa.pl](https://api.um.warszawa.pl).
-- **Setup:** Once obtained, paste your API key into `WAW_API_KEY` inside your local `local.properties` file.
+# 🚋 Volyna Tram (Kotlin Multiplatform / Real-Time GIS PoC)
 
-* [/app/iosApp](./app/iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
-
-* [/app/shared](./app/shared/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./app/shared/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./app/shared/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./app/shared/src/jvmMain/kotlin)
-    folder is the appropriate location.
-
-* [/core](./core/src) is for the code that will be shared between all targets in the project.
-  The most important subfolder is [commonMain](./core/src/commonMain/kotlin). If preferred, you
-  can add code to the platform-specific folders here too.
-
-* [/server](./server/src/main/kotlin) is for the Ktor server application.
-
-### Running the apps
-
-Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:
-
-- Android app: `./gradlew :app:androidApp:assembleDebug`
-- Desktop app:
-  - Hot reload: `./gradlew :app:desktopApp:hotRun --auto`
-  - Standard run: `./gradlew :app:desktopApp:run`
-- Server: `./gradlew :server:run`
-- Web app:
-  - Wasm target (faster, modern browsers): `./gradlew :app:webApp:wasmJsBrowserDevelopmentRun`
-  - JS target (slower, supports older browsers): `./gradlew :app:webApp:jsBrowserDevelopmentRun`
-- iOS app: open the [/app/iosApp](./app/iosApp) directory in Xcode and run it from there.
-
-### Running tests
-
-Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
-
-- Android tests: `./gradlew :app:shared:testAndroidHostTest`
-- Desktop tests: `./gradlew :app:shared:jvmTest`
-- Server tests: `./gradlew :server:test`
-- Web tests:
-  - Wasm target: `./gradlew :app:shared:wasmJsTest`
-  - JS target: `./gradlew :app:shared:jsTest`
-- iOS tests: `./gradlew :app:shared:iosSimulatorArm64Test`
+> **Project Status: Archived / Experimental Proof-of-Concept (Tech Spike)**  
+> This repository is a research exploration of **Kotlin Multiplatform (KMP)** and **Compose Multiplatform Canvas (Skia / WebGL via Wasm)** for processing and rendering streaming geospatial data.  
+> **This project is not an out-of-the-box turnkey consumer application.** The codebase serves architectural research and benchmarking purposes only.
 
 ---
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html),
-[Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform/#compose-multiplatform),
-[Kotlin/Wasm](https://kotl.in/wasm/)…
+## 🔬 Research Scope & Objectives
 
-We would appreciate your feedback on Compose/Web and Kotlin/Wasm in the public Slack channel [#compose-web](https://slack-chats.kotlinlang.org/c/compose-web).
-If you face any issues, please report them on [YouTrack](https://youtrack.jetbrains.com/newIssue?project=CMP).
+The goal of this experiment was to test the limits of Compose Canvas without relying on third-party web map engines (such as Leaflet, Mapbox, or MapLibre), verifying a **Smart Server / Lightweight Client** architecture across multiple platforms (Android and Web via Compose Wasm):
+
+1. **Native Canvas Rendering:** Direct spherical projection of WGS84 geographic coordinates onto a virtual screen plane using the Compose `Canvas` API, evaluating dynamic Level of Detail (LOD) and hardware-accelerated drawing.
+2. **Server-Side Spatial Workload:** Offloading spatial processing to a dedicated Ktor backend—including track snapping, in-memory vehicle indexing, instantaneous speed computation ($v = \Delta d / \Delta t$ via Haversine), and GeoJSON transformations.
+3. **Cross-Platform Shared Models:** Sharing domain models, serializers, and geospatial data contracts across mobile and browser targets using Kotlin Multiplatform.
+
+---
+
+## 🏛️ System Architecture
+
+[Warsaw Public Transport API]       [OpenStreetMap / Overpass API]
+│                                   │
+│ (Live polling)                    │ (BBOX GeoJSON query)
+▼                                   ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 Ktor Server Core Engine                     │
+│  - Background polling worker & in-memory registry           │
+│  - Haversine velocity computation (Δd / Δt)                 │
+│  - Static network cache (tracks, platforms, stops)          │
+└──────────────┬──────────────────────────────┬───────────────┘
+│                              │
+│ /api/network/map             │ /api/trams/live
+▼                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│           Compose Multiplatform Client Layer                │
+│  - Desktop, Android (Skia/Vulkan) & Web (Wasm/WebGL)        │
+│  - Custom coordinate projection (MapProjection)             │
+│  - Decoupled layers: InfrastructureCanvas & TramMarkers     │
+└─────────────────────────────────────────────────────────────┘
+
+
+---
+
+## ⚠️ Environmental Constraints & Disclaimer
+
+This codebase represents an experimental technical spike. Setting up the application locally requires understanding several platform-specific caveats:
+
+* **Local Infrastructure Dependency:** The client is designed around a dedicated backend service. Without an active Ktor server providing `/api/network/map` and `/api/trams/live`, client targets run in an uninitialized state.
+* **Browser Security & Wasm Constraints:** The Web target (Compose Wasm) runs inside browser sandboxes and is subject to Cross-Origin Resource Sharing (CORS) enforcement and fetch API loopback restrictions. Accessing a local Ktor server requires proper CORS header negotiation on the server.
+* **Coroutine Error Boundaries:** In-flight network exceptions inside Compose `LaunchedEffect` coroutines must be handled explicitly; unhandled network fetch failures will interrupt the Wasm frame clock.
+* **Build Tooling Volatility:** The multiplatform Gradle setup reflects specific experimental versions of Compose Multiplatform and Wasm toolchains and is not maintained for newer toolchain revisions.
+
+---
+
+## 🛠️ Technology Stack
+
+* **Core:** Kotlin Multiplatform (KMP)
+* **Backend:** Ktor Server (Netty engine), `kotlinx.coroutines`, `kotlinx.serialization`
+* **Presentation:** Compose Multiplatform (Compose Canvas, Skia, WebAssembly)
+* **Networking:** Ktor Client (CIO & JS Fetch engines)
+* **Data Interchange:** GeoJSON (FeatureCollection, LineString, Point)
+* **Targets Explored:** Android, Web (Wasm/JS), Desktop (JVM)
