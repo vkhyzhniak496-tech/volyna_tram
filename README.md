@@ -18,6 +18,7 @@ The goal of this experiment was to test the limits of Compose Canvas without rel
 
 ## 🏛️ System Architecture
 
+```text
 [Warsaw Public Transport API]       [OpenStreetMap / Overpass API]
 │                                   │
 │ (Live polling)                    │ (BBOX GeoJSON query)
@@ -37,7 +38,7 @@ The goal of this experiment was to test the limits of Compose Canvas without rel
 │  - Custom coordinate projection (MapProjection)             │
 │  - Decoupled layers: InfrastructureCanvas & TramMarkers     │
 └─────────────────────────────────────────────────────────────┘
-
+```
 
 ---
 
